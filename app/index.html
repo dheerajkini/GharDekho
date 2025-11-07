@@ -1,0 +1,2218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Udupi Shop Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Page Container */
+        .page {
+            display: none;
+            min-height: 100vh;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        /* Auth Pages Styles */
+        .auth-container {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .auth-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .auth-logo {
+            margin-bottom: 30px;
+        }
+
+        .auth-logo i {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .auth-logo h1 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+        }
+
+        .auth-logo p {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .auth-form {
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border 0.3s;
+        }
+
+        .form-control:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+
+        .auth-btn {
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-bottom: 15px;
+        }
+
+        .auth-btn:hover {
+            background: #5a6fd8;
+        }
+
+        .switch-auth {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            margin-top: 20px;
+        }
+
+        .switch-auth a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .switch-auth a:hover {
+            text-decoration: underline;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            margin-top: 15px;
+            padding: 10px;
+            background: #fdf2f2;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .success-message {
+            color: #27ae60;
+            margin-top: 15px;
+            padding: 10px;
+            background: #f2fdf2;
+            border-radius: 5px;
+            display: none;
+        }
+
+        /* Auth Tabs */
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 25px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #f8f9fa;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .auth-tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        /* Main App Styles */
+        :root {
+            --bg-primary: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --bg-secondary: white;
+            --bg-header: #2c3e50;
+            --bg-current-date: #34495e;
+            --text-primary: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --text-light: white;
+            --border-color: #e9ecef;
+            --shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+            --card-bg: #f8f9fa;
+        }
+
+        .dark-mode {
+            --bg-primary: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            --bg-secondary: #1a1a1a;
+            --bg-header: #1a252f;
+            --bg-current-date: #2c3e50;
+            --text-primary: #ecf0f1;
+            --text-secondary: #bdc3c7;
+            --text-light: #ecf0f1;
+            --border-color: #34495e;
+            --shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+            --card-bg: #2c3e50;
+        }
+
+        .app-body {
+            background: var(--bg-primary);
+            min-height: 100vh;
+            transition: all 0.3s ease;
+        }
+
+        .top-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-header);
+            color: var(--text-light);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .back-btn, .hamburger-btn {
+            background: none;
+            border: none;
+            color: var(--text-light);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+
+        .back-btn:hover, .hamburger-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .theme-toggle {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: var(--text-light);
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.3s;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -300px;
+            width: 280px;
+            height: 100vh;
+            background: var(--bg-secondary);
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            transition: left 0.3s ease;
+            z-index: 999;
+            padding: 70px 20px 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar.active {
+            left: 0;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            flex: 1;
+        }
+
+        .sidebar-item {
+            margin-bottom: 10px;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px;
+            color: var(--text-primary);
+            text-decoration: none;
+            border-radius: 10px;
+            transition: all 0.3s;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .sidebar-link:hover {
+            background: var(--card-bg);
+            transform: translateX(5px);
+        }
+
+        .sidebar-link.active {
+            background: var(--bg-header);
+            color: var(--text-light);
+        }
+
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .sidebar-logout {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px;
+            color: var(--text-primary);
+            text-decoration: none;
+            border-radius: 10px;
+            transition: all 0.3s;
+            font-weight: 500;
+            cursor: pointer;
+            background: rgba(231, 76, 60, 0.1);
+            color: #e74c3c;
+            border: none;
+            width: 100%;
+            text-align: left;
+        }
+
+        .sidebar-logout:hover {
+            background: rgba(231, 76, 60, 0.2);
+            transform: translateX(5px);
+        }
+
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 998;
+        }
+
+        .sidebar-overlay.active {
+            display: block;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 70px auto 20px;
+            padding: 20px;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .header {
+            background: var(--bg-header);
+            color: var(--text-light);
+            padding: 25px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+
+        .current-date {
+            background: var(--bg-current-date);
+            color: var(--text-light);
+            padding: 10px;
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        .quick-input {
+            padding: 25px;
+            background: var(--card-bg);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .amount-input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 1.2rem;
+            text-align: center;
+            transition: border 0.3s;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        .amount-input:focus {
+            border-color: #4facfe;
+            outline: none;
+        }
+
+        .payment-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .payment-btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .cash-btn {
+            background: #28a745;
+            color: white;
+        }
+
+        .cash-btn.active {
+            background: #218838;
+            box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.3);
+        }
+
+        .digital-btn {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .digital-btn.active {
+            background: #138496;
+            box-shadow: 0 0 0 3px rgba(23, 162, 184, 0.3);
+        }
+
+        .add-btn {
+            width: 100%;
+            padding: 15px;
+            background: var(--bg-header);
+            color: var(--text-light);
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .add-btn:hover {
+            background: #1a252f;
+        }
+
+        .summary {
+            padding: 25px;
+        }
+
+        .summary h2 {
+            margin-bottom: 20px;
+            color: var(--text-primary);
+            text-align: center;
+            font-size: 1.4rem;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .stat-card {
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .cash-stat .stat-value {
+            color: #28a745;
+        }
+
+        .digital-stat .stat-value {
+            color: #17a2b8;
+        }
+
+        .total-stat .stat-value {
+            color: #e74c3c;
+        }
+
+        .items-stat .stat-value {
+            color: #f39c12;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .total-stat, .items-stat {
+            grid-column: span 2;
+        }
+
+        .recent-sales {
+            padding: 25px;
+        }
+
+        .recent-sales h2 {
+            margin-bottom: 15px;
+            color: var(--text-primary);
+            font-size: 1.4rem;
+        }
+
+        .sales-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+        }
+
+        .sale-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sale-item:last-child {
+            border-bottom: none;
+        }
+
+        .sale-amount {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .sale-method.cash {
+            color: #28a745;
+        }
+
+        .sale-method.digital {
+            color: #17a2b8;
+        }
+
+        .sale-time {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+
+        .history-section {
+            padding: 25px;
+        }
+
+        .history-section h2 {
+            margin-bottom: 20px;
+            color: var(--text-primary);
+            font-size: 1.4rem;
+        }
+
+        .history-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .history-tab {
+            flex: 1;
+            padding: 12px;
+            background: var(--card-bg);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+            color: var(--text-primary);
+        }
+
+        .history-tab.active {
+            background: var(--bg-header);
+            color: var(--text-light);
+        }
+
+        .history-content {
+            display: none;
+        }
+
+        .history-content.active {
+            display: block;
+        }
+
+        .history-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .history-list {
+            max-height: 500px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .export-section {
+            padding: 25px;
+            text-align: center;
+        }
+
+        .export-btn {
+            padding: 15px 25px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .export-btn:hover {
+            background: #c0392b;
+        }
+
+        /* Auto Email Section Styles */
+        .auto-email-section {
+            padding: 25px;
+            background: var(--card-bg);
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .auto-email-section h3 {
+            margin-bottom: 20px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.2rem;
+        }
+
+        .email-settings {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .email-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+
+        .email-input:focus {
+            border-color: #4facfe;
+            outline: none;
+        }
+
+        .save-email-btn {
+            padding: 12px 20px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .save-email-btn:hover {
+            background: #219653;
+        }
+
+        .email-status {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .email-status.active {
+            color: #27ae60;
+        }
+
+        .auto-email-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #27ae60;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin-top: 80px;
+                padding: 15px;
+            }
+            
+            .stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .total-stat, .items-stat {
+                grid-column: span 1;
+            }
+        }
+
+        @media (max-width: 500px) {
+            .auth-card {
+                padding: 30px 20px;
+            }
+            
+            .card {
+                border-radius: 15px;
+            }
+            
+            .header, .quick-input, .summary, .recent-sales, .history-section, .export-section {
+                padding: 20px;
+            }
+            
+            .stat-value {
+                font-size: 1.5rem;
+            }
+            
+            .sidebar {
+                width: 100%;
+                left: -100%;
+            }
+            
+            .email-settings {
+                flex-direction: column;
+            }
+            
+            .email-input {
+                min-width: 100%;
+            }
+            
+            .history-tabs {
+                flex-direction: column;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Login/Signup Page -->
+    <div id="login-page" class="page active">
+        <div class="auth-container">
+            <div class="auth-card">
+                <div class="auth-logo">
+                    <i class="fas fa-store"></i>
+                    <h1>Udupi Shop Tracker</h1>
+                    <p>Secure Business Management System</p>
+                </div>
+                
+                <div class="auth-tabs">
+                    <button class="auth-tab active" id="login-tab">Login</button>
+                    <button class="auth-tab" id="signup-tab">Sign Up</button>
+                </div>
+                
+                <!-- Login Form -->
+                <form class="auth-form" id="login-form" style="display: block;">
+                    <div class="form-group">
+                        <label for="login-username">Username</label>
+                        <input type="text" id="login-username" class="form-control" placeholder="Enter your username" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" class="form-control" placeholder="Enter your password" required>
+                    </div>
+                    
+                    <button type="submit" class="auth-btn">
+                        <i class="fas fa-sign-in-alt"></i> Login to Dashboard
+                    </button>
+                    
+                    <div class="error-message" id="login-error">
+                        Invalid username or password. Please try again.
+                    </div>
+                </form>
+                
+                <!-- Signup Form -->
+                <form class="auth-form" id="signup-form" style="display: none;">
+                    <div class="form-group">
+                        <label for="signup-username">Username</label>
+                        <input type="text" id="signup-username" class="form-control" placeholder="Choose a username" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="signup-email">Email</label>
+                        <input type="email" id="signup-email" class="form-control" placeholder="Enter your email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="signup-password">Password</label>
+                        <input type="password" id="signup-password" class="form-control" placeholder="Create a password" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="signup-confirm-password">Confirm Password</label>
+                        <input type="password" id="signup-confirm-password" class="form-control" placeholder="Confirm your password" required>
+                    </div>
+                    
+                    <button type="submit" class="auth-btn">
+                        <i class="fas fa-user-plus"></i> Create Account
+                    </button>
+                    
+                    <div class="error-message" id="signup-error">
+                        Please check your information and try again.
+                    </div>
+                    
+                    <div class="success-message" id="signup-success">
+                        Account created successfully! You can now login.
+                    </div>
+                </form>
+                
+                <div class="switch-auth">
+                    <span id="switch-text">Don't have an account? </span>
+                    <a id="switch-link">Sign up</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard Page -->
+    <div id="dashboard-page" class="page">
+        <div class="app-body">
+            <!-- Top Navigation -->
+            <div class="top-nav">
+                <div class="nav-left">
+                    <button class="hamburger-btn" id="hamburger-btn">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="nav-title">Dashboard - Udupi Shop Tracker</div>
+                </div>
+                <div>
+                    <button class="theme-toggle" id="theme-toggle">
+                        <i class="fas fa-moon" id="theme-icon"></i>
+                        <span id="theme-text">Dark Mode</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sidebar Navigation -->
+            <div class="sidebar" id="sidebar">
+                <ul class="sidebar-menu">
+                    <li class="sidebar-item">
+                        <a class="sidebar-link active" onclick="showPage('dashboard')">
+                            <i class="fas fa-chart-pie"></i>
+                            <span>Today's Summary</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" onclick="showPage('recent-sales')">
+                            <i class="fas fa-receipt"></i>
+                            <span>Recent Sales</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" onclick="showPage('sales-history')">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Sale History</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item">
+                        <a class="sidebar-link" onclick="showPage('export-data')">
+                            <i class="fas fa-envelope"></i>
+                            <span>Export Data</span>
+                        </a>
+                    </li>
+                </ul>
+                
+                <!-- Logout Button in Sidebar -->
+                <div class="sidebar-footer">
+                    <button class="sidebar-logout" id="sidebar-logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sidebar Overlay -->
+            <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+            <!-- Main Content -->
+            <div class="container">
+                <div class="card">
+                    <div class="header">
+                        <h1><i class="fas fa-store"></i> Udupi Shop Tracker Pro</h1>
+                        <p>Just enter amount - we'll handle the rest</p>
+                    </div>
+                    
+                    <div class="current-date" id="current-date">
+                        <!-- Current date will be inserted here -->
+                    </div>
+                    
+                    <div class="quick-input">
+                        <div class="input-group">
+                            <input type="number" class="amount-input" id="amount-input" placeholder="0" min="0" step="0.01">
+                        </div>
+                        
+                        <div class="payment-buttons">
+                            <button class="payment-btn cash-btn active" id="cash-btn" data-method="cash">
+                                <i class="fas fa-money-bill-wave"></i> Cash
+                            </button>
+                            <button class="payment-btn digital-btn" id="digital-btn" data-method="digital">
+                                <i class="fas fa-mobile-alt"></i> Digital
+                            </button>
+                        </div>
+                        
+                        <button class="add-btn" id="add-btn">
+                            <i class="fas fa-plus-circle"></i> Add Sale
+                        </button>
+                    </div>
+                    
+                    <div class="summary">
+                        <h2>Today's Summary</h2>
+                        <div class="stats">
+                            <div class="stat-card cash-stat">
+                                <div class="stat-label">Cash Sales</div>
+                                <div class="stat-value" id="cash-total">₹0</div>
+                            </div>
+                            
+                            <div class="stat-card digital-stat">
+                                <div class="stat-label">Digital Sales</div>
+                                <div class="stat-value" id="digital-total">₹0</div>
+                            </div>
+                            
+                            <div class="stat-card total-stat">
+                                <div class="stat-label">Total Sales</div>
+                                <div class="stat-value" id="total-sales">₹0</div>
+                            </div>
+                            
+                            <div class="stat-card items-stat">
+                                <div class="stat-label">Transactions</div>
+                                <div class="stat-value" id="transactions-count">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Auto Email Section -->
+                <div class="auto-email-section">
+                    <h3><i class="fas fa-cog"></i> Automatic Email Reports</h3>
+                    <div class="email-settings">
+                        <input type="email" class="email-input" id="auto-email" placeholder="Enter email for automatic reports">
+                        <button class="save-email-btn" id="save-email-btn">
+                            <i class="fas fa-save"></i> Save Email
+                        </button>
+                    </div>
+                    <div class="auto-email-toggle">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="auto-email-toggle">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Enable automatic daily reports</span>
+                    </div>
+                    <div class="email-status" id="email-status">
+                        <i class="fas fa-info-circle"></i>
+                        <span>No email configured for automatic reports</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Sales Page -->
+    <div id="recent-sales-page" class="page">
+        <div class="app-body">
+            <!-- Top Navigation -->
+            <div class="top-nav">
+                <div class="nav-left">
+                    <button class="back-btn" onclick="showPage('dashboard')">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div class="nav-title">Recent Sales</div>
+                </div>
+                <div>
+                    <button class="theme-toggle" id="theme-toggle-recent">
+                        <i class="fas fa-moon" id="theme-icon-recent"></i>
+                        <span id="theme-text-recent">Dark Mode</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="container">
+                <div class="card">
+                    <div class="header">
+                        <h1><i class="fas fa-receipt"></i> Recent Sales</h1>
+                        <p>View all recent transactions</p>
+                    </div>
+                    
+                    <div class="recent-sales">
+                        <h2>Today's Sales</h2>
+                        <div class="sales-list" id="sales-list">
+                            <div class="empty-state">
+                                <i class="fas fa-receipt"></i>
+                                <p>No sales yet today</p>
+                                <p>Add your first sale from the dashboard</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sales History Page -->
+    <div id="sales-history-page" class="page">
+        <div class="app-body">
+            <!-- Top Navigation -->
+            <div class="top-nav">
+                <div class="nav-left">
+                    <button class="back-btn" onclick="showPage('dashboard')">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div class="nav-title">Sales History</div>
+                </div>
+                <div>
+                    <button class="theme-toggle" id="theme-toggle-history">
+                        <i class="fas fa-moon" id="theme-icon-history"></i>
+                        <span id="theme-text-history">Dark Mode</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="container">
+                <div class="card">
+                    <div class="header">
+                        <h1><i class="fas fa-chart-line"></i> Sales History</h1>
+                        <p>View past performance and trends</p>
+                    </div>
+                    
+                    <div class="history-section">
+                        <h2>Historical Data</h2>
+                        
+                        <div class="history-tabs">
+                            <button class="history-tab active" id="tab-7days" data-period="7days">Last 7 Days</button>
+                            <button class="history-tab" id="tab-30days" data-period="30days">Last 30 Days</button>
+                            <button class="history-tab" id="tab-month" data-period="month">This Month</button>
+                        </div>
+                        
+                        <div class="history-content active" id="7days-content">
+                            <div class="history-stats">
+                                <div class="stat-card">
+                                    <div class="stat-label">7-Day Total</div>
+                                    <div class="stat-value" id="7days-total">₹0</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-label">Daily Average</div>
+                                    <div class="stat-value" id="7days-avg">₹0</div>
+                                </div>
+                            </div>
+                            <div class="history-list" id="7days-list">
+                                <!-- 7-day history will be inserted here -->
+                            </div>
+                        </div>
+                        
+                        <div class="history-content" id="30days-content">
+                            <div class="history-stats">
+                                <div class="stat-card">
+                                    <div class="stat-label">30-Day Total</div>
+                                    <div class="stat-value" id="30days-total">₹0</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-label">Daily Average</div>
+                                    <div class="stat-value" id="30days-avg">₹0</div>
+                                </div>
+                            </div>
+                            <div class="history-list" id="30days-list">
+                                <!-- 30-day history will be inserted here -->
+                            </div>
+                        </div>
+                        
+                        <div class="history-content" id="month-content">
+                            <div class="history-stats">
+                                <div class="stat-card">
+                                    <div class="stat-label">Month Total</div>
+                                    <div class="stat-value" id="month-total">₹0</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-label">Days Recorded</div>
+                                    <div class="stat-value" id="month-days">0</div>
+                                </div>
+                            </div>
+                            <div class="history-list" id="month-list">
+                                <!-- Month history will be inserted here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Data Page -->
+    <div id="export-data-page" class="page">
+        <div class="app-body">
+            <!-- Top Navigation -->
+            <div class="top-nav">
+                <div class="nav-left">
+                    <button class="back-btn" onclick="showPage('dashboard')">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <div class="nav-title">Export Data</div>
+                </div>
+                <div>
+                    <button class="theme-toggle" id="theme-toggle-export">
+                        <i class="fas fa-moon" id="theme-icon-export"></i>
+                        <span id="theme-text-export">Dark Mode</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="container">
+                <div class="card">
+                    <div class="header">
+                        <h1><i class="fas fa-envelope"></i> Export Data</h1>
+                        <p>Export your sales data via email</p>
+                    </div>
+                    
+                    <div class="export-section">
+                        <button class="export-btn" id="export-btn">
+                            <i class="fas fa-envelope"></i> Export to Email
+                        </button>
+                        <p style="margin-top: 15px; color: var(--text-secondary);">
+                            This will send a comprehensive sales report with all your transaction data to your email.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="header">
+                        <h1><i class="fas fa-download"></i> Download Reports</h1>
+                        <p>Download your data in different formats</p>
+                    </div>
+                    
+                    <div class="export-section">
+                        <button class="export-btn" id="download-csv" style="background: #27ae60;">
+                            <i class="fas fa-file-csv"></i> Download CSV
+                        </button>
+                        <button class="export-btn" id="download-pdf" style="background: #e74c3c; margin-left: 10px;">
+                            <i class="fas fa-file-pdf"></i> Download PDF
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // User management system
+        const USER_STORAGE_KEY = 'shopTrackerUsers';
+        const CURRENT_USER_KEY = 'currentShopTrackerUser';
+        const AUTO_EMAIL_KEY = 'autoEmailSettings';
+        const SALES_DATA_KEY = 'shopTrackerData';
+
+        // Global variables
+        let salesData = {
+            sales: [],
+            dailySummary: {}
+        };
+        let currentDate = new Date().toISOString().split('T')[0];
+
+        // Page Management
+        function showPage(pageName) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.remove('active');
+            });
+            
+            // Show the requested page
+            document.getElementById(`${pageName}-page`).classList.add('active');
+            
+            // Close sidebar if open
+            closeSidebar();
+            
+            // Load page-specific data
+            switch(pageName) {
+                case 'dashboard':
+                    loadDashboardData();
+                    break;
+                case 'recent-sales':
+                    loadRecentSales();
+                    break;
+                case 'sales-history':
+                    loadSalesHistory();
+                    break;
+                case 'export-data':
+                    // No specific data to load for export page
+                    break;
+            }
+        }
+
+        // Initialize users storage
+        function initializeUsers() {
+            if (!localStorage.getItem(USER_STORAGE_KEY)) {
+                // Create default admin user
+                const defaultUsers = {
+                    'admin': {
+                        username: 'admin',
+                        email: 'admin@udupishop.com',
+                        password: 'password123',
+                        createdAt: new Date().toISOString()
+                    }
+                };
+                localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(defaultUsers));
+            }
+        }
+
+        // Initialize sales data
+        function initializeSalesData() {
+            if (!localStorage.getItem(SALES_DATA_KEY)) {
+                localStorage.setItem(SALES_DATA_KEY, JSON.stringify(salesData));
+            } else {
+                salesData = JSON.parse(localStorage.getItem(SALES_DATA_KEY));
+            }
+        }
+
+        // Initialize auto email settings
+        function initializeAutoEmail() {
+            if (!localStorage.getItem(AUTO_EMAIL_KEY)) {
+                localStorage.setItem(AUTO_EMAIL_KEY, JSON.stringify({
+                    email: '',
+                    enabled: false,
+                    lastSent: null
+                }));
+            }
+        }
+
+        // Get auto email settings
+        function getAutoEmailSettings() {
+            return JSON.parse(localStorage.getItem(AUTO_EMAIL_KEY)) || {
+                email: '',
+                enabled: false,
+                lastSent: null
+            };
+        }
+
+        // Save auto email settings
+        function saveAutoEmailSettings(settings) {
+            localStorage.setItem(AUTO_EMAIL_KEY, JSON.stringify(settings));
+        }
+
+        // Get all users
+        function getUsers() {
+            return JSON.parse(localStorage.getItem(USER_STORAGE_KEY)) || {};
+        }
+
+        // Save users
+        function saveUsers(users) {
+            localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
+        }
+
+        // Check if user exists
+        function userExists(username) {
+            const users = getUsers();
+            return users.hasOwnProperty(username);
+        }
+
+        // Register new user
+        function registerUser(username, email, password) {
+            const users = getUsers();
+            
+            if (userExists(username)) {
+                return { success: false, message: 'Username already exists' };
+            }
+            
+            users[username] = {
+                username: username,
+                email: email,
+                password: password,
+                createdAt: new Date().toISOString()
+            };
+            
+            saveUsers(users);
+            return { success: true, message: 'User registered successfully' };
+        }
+
+        // Authenticate user
+        function authenticateUser(username, password) {
+            const users = getUsers();
+            
+            if (!userExists(username)) {
+                return { success: false, message: 'User not found' };
+            }
+            
+            const user = users[username];
+            if (user.password !== password) {
+                return { success: false, message: 'Invalid password' };
+            }
+            
+            return { success: true, user: user };
+        }
+
+        // Check if user is already logged in
+        function checkLoginStatus() {
+            const currentUser = localStorage.getItem(CURRENT_USER_KEY);
+            if (currentUser) {
+                showPage('dashboard');
+            }
+        }
+
+        // Handle logout
+        function handleLogout() {
+            localStorage.removeItem(CURRENT_USER_KEY);
+            showPage('login');
+            // Clear forms
+            document.getElementById('login-form').reset();
+            document.getElementById('signup-form').reset();
+            document.getElementById('login-error').style.display = 'none';
+            document.getElementById('signup-error').style.display = 'none';
+            document.getElementById('signup-success').style.display = 'none';
+        }
+
+        // Switch between login and signup forms
+        function setupAuthTabs() {
+            const loginTab = document.getElementById('login-tab');
+            const signupTab = document.getElementById('signup-tab');
+            const loginForm = document.getElementById('login-form');
+            const signupForm = document.getElementById('signup-form');
+            const switchText = document.getElementById('switch-text');
+            const switchLink = document.getElementById('switch-link');
+
+            loginTab.addEventListener('click', function() {
+                loginTab.classList.add('active');
+                signupTab.classList.remove('active');
+                loginForm.style.display = 'block';
+                signupForm.style.display = 'none';
+                switchText.textContent = "Don't have an account? ";
+                switchLink.textContent = "Sign up";
+            });
+
+            signupTab.addEventListener('click', function() {
+                signupTab.classList.add('active');
+                loginTab.classList.remove('active');
+                signupForm.style.display = 'block';
+                loginForm.style.display = 'none';
+                switchText.textContent = "Already have an account? ";
+                switchLink.textContent = "Login";
+            });
+
+            switchLink.addEventListener('click', function() {
+                if (loginTab.classList.contains('active')) {
+                    signupTab.click();
+                } else {
+                    loginTab.click();
+                }
+            });
+        }
+
+        // Handle login form submission
+        function setupLoginForm() {
+            document.getElementById('login-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const username = document.getElementById('login-username').value;
+                const password = document.getElementById('login-password').value;
+                const errorMessage = document.getElementById('login-error');
+                
+                const authResult = authenticateUser(username, password);
+                
+                if (authResult.success) {
+                    // Successful login
+                    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(authResult.user));
+                    showPage('dashboard');
+                } else {
+                    // Failed login
+                    errorMessage.textContent = authResult.message;
+                    errorMessage.style.display = 'block';
+                    document.getElementById('login-password').value = '';
+                    document.getElementById('login-password').focus();
+                }
+            });
+        }
+
+        // Handle signup form submission
+        function setupSignupForm() {
+            document.getElementById('signup-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const username = document.getElementById('signup-username').value;
+                const email = document.getElementById('signup-email').value;
+                const password = document.getElementById('signup-password').value;
+                const confirmPassword = document.getElementById('signup-confirm-password').value;
+                const errorMessage = document.getElementById('signup-error');
+                const successMessage = document.getElementById('signup-success');
+                
+                // Hide previous messages
+                errorMessage.style.display = 'none';
+                successMessage.style.display = 'none';
+                
+                // Validation
+                if (password !== confirmPassword) {
+                    errorMessage.textContent = "Passwords don't match";
+                    errorMessage.style.display = 'block';
+                    return;
+                }
+                
+                if (password.length < 6) {
+                    errorMessage.textContent = "Password must be at least 6 characters long";
+                    errorMessage.style.display = 'block';
+                    return;
+                }
+                
+                const registerResult = registerUser(username, email, password);
+                
+                if (registerResult.success) {
+                    // Successful registration
+                    successMessage.style.display = 'block';
+                    document.getElementById('signup-form').reset();
+                    
+                    // Switch to login after 2 seconds
+                    setTimeout(() => {
+                        document.getElementById('login-tab').click();
+                        document.getElementById('login-username').value = username;
+                    }, 2000);
+                } else {
+                    // Failed registration
+                    errorMessage.textContent = registerResult.message;
+                    errorMessage.style.display = 'block';
+                }
+            });
+        }
+
+        // Setup common event listeners
+        function setupCommonEventListeners() {
+            // Theme toggle for all pages
+            document.querySelectorAll('.theme-toggle').forEach(toggle => {
+                toggle.addEventListener('click', toggleTheme);
+            });
+
+            // Hamburger menu
+            const hamburgerBtn = document.getElementById('hamburger-btn');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            
+            if (hamburgerBtn && sidebar && overlay) {
+                hamburgerBtn.addEventListener('click', toggleSidebar);
+                overlay.addEventListener('click', closeSidebar);
+            }
+
+            // Logout button
+            const logoutBtn = document.getElementById('sidebar-logout');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', handleLogout);
+            }
+
+            // Load theme preference
+            const savedTheme = localStorage.getItem('shopTrackerTheme') || 'light';
+            document.body.classList.toggle('dark-mode', savedTheme === 'dark');
+            updateThemeToggle(savedTheme);
+        }
+
+        // Toggle sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (sidebar && overlay) {
+                sidebar.classList.toggle('active');
+                overlay.classList.toggle('active');
+            }
+        }
+
+        // Close sidebar
+        function closeSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (sidebar && overlay) {
+                sidebar.classList.remove('active');
+                overlay.classList.remove('active');
+            }
+        }
+
+        // Toggle theme
+        function toggleTheme() {
+            const isDark = document.body.classList.toggle('dark-mode');
+            const theme = isDark ? 'dark' : 'light';
+            localStorage.setItem('shopTrackerTheme', theme);
+            updateThemeToggle(theme);
+        }
+
+        // Update theme toggle button
+        function updateThemeToggle(theme) {
+            document.querySelectorAll('.theme-toggle').forEach(toggle => {
+                const themeIcon = toggle.querySelector('i');
+                const themeText = toggle.querySelector('span');
+                
+                if (themeIcon && themeText) {
+                    if (theme === 'dark') {
+                        themeIcon.className = 'fas fa-sun';
+                        themeText.textContent = 'Light Mode';
+                    } else {
+                        themeIcon.className = 'fas fa-moon';
+                        themeText.textContent = 'Dark Mode';
+                    }
+                }
+            });
+        }
+
+        // Update current date
+        function updateCurrentDate() {
+            const currentDateElement = document.getElementById('current-date');
+            if (currentDateElement) {
+                const formattedDate = new Date().toLocaleDateString('en-IN', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                currentDateElement.textContent = formattedDate;
+            }
+        }
+
+        // Save data to localStorage
+        function saveData() {
+            try {
+                localStorage.setItem(SALES_DATA_KEY, JSON.stringify(salesData));
+                return true;
+            } catch (e) {
+                console.error('Failed to save data:', e);
+                return false;
+            }
+        }
+
+        // Dashboard functionality
+        function setupDashboardEventListeners() {
+            // Payment method selection
+            const cashBtn = document.getElementById('cash-btn');
+            const digitalBtn = document.getElementById('digital-btn');
+            
+            if (cashBtn && digitalBtn) {
+                cashBtn.addEventListener('click', function() {
+                    cashBtn.classList.add('active');
+                    digitalBtn.classList.remove('active');
+                });
+                
+                digitalBtn.addEventListener('click', function() {
+                    digitalBtn.classList.add('active');
+                    cashBtn.classList.remove('active');
+                });
+            }
+            
+            // Add sale button
+            const addBtn = document.getElementById('add-btn');
+            if (addBtn) {
+                addBtn.addEventListener('click', addSale);
+            }
+            
+            // Enter key to add sale
+            const amountInput = document.getElementById('amount-input');
+            if (amountInput) {
+                amountInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        addSale();
+                    }
+                });
+            }
+            
+            // Auto email settings
+            const saveEmailBtn = document.getElementById('save-email-btn');
+            const emailToggle = document.getElementById('auto-email-toggle');
+            
+            if (saveEmailBtn) {
+                saveEmailBtn.addEventListener('click', saveAutoEmail);
+            }
+            
+            if (emailToggle) {
+                emailToggle.addEventListener('change', toggleAutoEmail);
+            }
+        }
+
+        // Add a new sale
+        function addSale() {
+            const amountInput = document.getElementById('amount-input');
+            const amount = parseFloat(amountInput.value);
+            
+            if (!amount || amount <= 0) {
+                alert('Please enter a valid amount');
+                amountInput.focus();
+                return;
+            }
+            
+            // Get selected payment method
+            const activeButton = document.querySelector('.payment-btn.active');
+            const paymentMethod = activeButton.getAttribute('data-method');
+            
+            // Create sale object
+            const sale = {
+                id: Date.now(),
+                date: currentDate,
+                amount: amount,
+                paymentMethod: paymentMethod,
+                timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            };
+            
+            // Add to sales data
+            salesData.sales.push(sale);
+            
+            // Update daily summary
+            updateDailySummary(sale);
+            
+            // Save data
+            saveData();
+            
+            // Update UI
+            loadDashboardData();
+            
+            // Reset input and focus
+            amountInput.value = '';
+            amountInput.focus();
+            
+            // Show visual feedback
+            const addButton = document.getElementById('add-btn');
+            addButton.innerHTML = '<i class="fas fa-check"></i> Added!';
+            addButton.style.background = '#28a745';
+            setTimeout(() => {
+                addButton.innerHTML = '<i class="fas fa-plus-circle"></i> Add Sale';
+                addButton.style.background = '';
+            }, 1000);
+        }
+
+        // Update daily summary
+        function updateDailySummary(sale) {
+            if (!salesData.dailySummary[currentDate]) {
+                salesData.dailySummary[currentDate] = {
+                    totalCash: 0,
+                    totalDigital: 0,
+                    totalSales: 0,
+                    transactionCount: 0
+                };
+            }
+            
+            // Update summary based on payment method
+            if (sale.paymentMethod === 'cash') {
+                salesData.dailySummary[currentDate].totalCash += sale.amount;
+            } else {
+                salesData.dailySummary[currentDate].totalDigital += sale.amount;
+            }
+            
+            salesData.dailySummary[currentDate].totalSales += sale.amount;
+            salesData.dailySummary[currentDate].transactionCount += 1;
+        }
+
+        // Load dashboard data
+        function loadDashboardData() {
+            const summary = salesData.dailySummary[currentDate] || {
+                totalCash: 0,
+                totalDigital: 0,
+                totalSales: 0,
+                transactionCount: 0
+            };
+            
+            // Update summary display
+            document.getElementById('cash-total').textContent = '₹' + summary.totalCash.toFixed(2);
+            document.getElementById('digital-total').textContent = '₹' + summary.totalDigital.toFixed(2);
+            document.getElementById('total-sales').textContent = '₹' + summary.totalSales.toFixed(2);
+            document.getElementById('transactions-count').textContent = summary.transactionCount;
+        }
+
+        // Load auto email settings
+        function loadAutoEmailSettings() {
+            const settings = getAutoEmailSettings();
+            const emailInput = document.getElementById('auto-email');
+            const toggle = document.getElementById('auto-email-toggle');
+            const status = document.getElementById('email-status');
+
+            if (emailInput && toggle && status) {
+                emailInput.value = settings.email;
+                toggle.checked = settings.enabled;
+
+                if (settings.email && settings.enabled) {
+                    status.innerHTML = '<i class="fas fa-check-circle"></i> Automatic reports enabled for ' + settings.email;
+                    status.classList.add('active');
+                } else if (settings.email) {
+                    status.innerHTML = '<i class="fas fa-info-circle"></i> Email saved but automatic reports disabled';
+                } else {
+                    status.innerHTML = '<i class="fas fa-info-circle"></i> No email configured for automatic reports';
+                }
+            }
+        }
+
+        // Save auto email settings
+        function saveAutoEmail() {
+            const emailInput = document.getElementById('auto-email');
+            const email = emailInput.value.trim();
+            const status = document.getElementById('email-status');
+
+            if (!email) {
+                alert('Please enter a valid email address');
+                return;
+            }
+
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert('Please enter a valid email address');
+                return;
+            }
+
+            const settings = getAutoEmailSettings();
+            settings.email = email;
+            saveAutoEmailSettings(settings);
+
+            status.innerHTML = '<i class="fas fa-check-circle"></i> Email saved successfully';
+            status.classList.add('active');
+            setTimeout(() => {
+                loadAutoEmailSettings();
+            }, 2000);
+        }
+
+        // Toggle auto email
+        function toggleAutoEmail() {
+            const toggle = document.getElementById('auto-email-toggle');
+            const settings = getAutoEmailSettings();
+            
+            if (!settings.email) {
+                alert('Please save an email address first');
+                toggle.checked = false;
+                return;
+            }
+
+            settings.enabled = toggle.checked;
+            saveAutoEmailSettings(settings);
+            loadAutoEmailSettings();
+        }
+
+        // Recent sales functionality
+        function loadRecentSales() {
+            const todaySales = salesData.sales
+                .filter(sale => sale.date === currentDate)
+                .sort((a, b) => b.id - a.id);
+            
+            const salesListElement = document.getElementById('sales-list');
+            
+            if (!salesListElement) return;
+            
+            if (todaySales.length === 0) {
+                salesListElement.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><p>No sales yet today</p><p>Add your first sale from the dashboard</p></div>';
+                return;
+            }
+            
+            salesListElement.innerHTML = '';
+            
+            todaySales.forEach(sale => {
+                const saleItem = document.createElement('div');
+                saleItem.className = 'sale-item';
+                saleItem.innerHTML = `
+                    <div>
+                        <div class="sale-amount">₹${sale.amount.toFixed(2)}</div>
+                        <div class="sale-time">${sale.timestamp}</div>
+                    </div>
+                    <div class="sale-method ${sale.paymentMethod}">
+                        ${sale.paymentMethod === 'cash' ? '<i class="fas fa-money-bill-wave"></i>' : '<i class="fas fa-mobile-alt"></i>'}
+                        ${sale.paymentMethod.charAt(0).toUpperCase() + sale.paymentMethod.slice(1)}
+                    </div>
+                `;
+                salesListElement.appendChild(saleItem);
+            });
+        }
+
+        // Sales history functionality
+        function loadSalesHistory() {
+            setupHistoryTabs();
+            load7DaysHistory(); // Load default tab data
+        }
+
+        function setupHistoryTabs() {
+            const tab7days = document.getElementById('tab-7days');
+            const tab30days = document.getElementById('tab-30days');
+            const tabMonth = document.getElementById('tab-month');
+            
+            if (tab7days) tab7days.addEventListener('click', () => showHistoryTab('7days'));
+            if (tab30days) tab30days.addEventListener('click', () => showHistoryTab('30days'));
+            if (tabMonth) tabMonth.addEventListener('click', () => showHistoryTab('month'));
+        }
+
+        function showHistoryTab(period) {
+            // Update active tab
+            document.querySelectorAll('.history-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById('tab-' + period).classList.add('active');
+            
+            // Show active content
+            document.querySelectorAll('.history-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(period + '-content').classList.add('active');
+            
+            // Load data for the selected period
+            loadHistoryData(period);
+        }
+
+        function loadHistoryData(period) {
+            switch(period) {
+                case '7days':
+                    load7DaysHistory();
+                    break;
+                case '30days':
+                    load30DaysHistory();
+                    break;
+                case 'month':
+                    loadMonthHistory();
+                    break;
+            }
+        }
+
+        function load7DaysHistory() {
+            const dates = [];
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                dates.push(date.toISOString().split('T')[0]);
+            }
+            
+            let total = 0;
+            let daysWithData = 0;
+            const listElement = document.getElementById('7days-list');
+            
+            if (!listElement) return;
+            
+            listElement.innerHTML = '';
+            
+            dates.forEach(date => {
+                const summary = salesData.dailySummary[date];
+                const dateObj = new Date(date);
+                const formattedDate = dateObj.toLocaleDateString('en-IN', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short'
+                });
+                
+                if (summary) {
+                    total += summary.totalSales;
+                    daysWithData++;
+                    
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    historyItem.innerHTML = '<div>' + formattedDate + '</div><div class="sale-amount">₹' + summary.totalSales.toFixed(2) + '</div>';
+                    listElement.appendChild(historyItem);
+                } else {
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    historyItem.innerHTML = '<div>' + formattedDate + '</div><div style="color: var(--text-secondary);">No data</div>';
+                    listElement.appendChild(historyItem);
+                }
+            });
+            
+            document.getElementById('7days-total').textContent = '₹' + total.toFixed(2);
+            document.getElementById('7days-avg').textContent = '₹' + (total / Math.max(daysWithData, 1)).toFixed(2);
+        }
+
+        function load30DaysHistory() {
+            const dates = [];
+            for (let i = 29; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                dates.push(date.toISOString().split('T')[0]);
+            }
+            
+            let total = 0;
+            let daysWithData = 0;
+            const listElement = document.getElementById('30days-list');
+            
+            if (!listElement) return;
+            
+            listElement.innerHTML = '';
+            
+            // Only show last 10 days in the list for readability
+            const displayDates = dates.slice(-10);
+            
+            displayDates.forEach(date => {
+                const summary = salesData.dailySummary[date];
+                const dateObj = new Date(date);
+                const formattedDate = dateObj.toLocaleDateString('en-IN', {
+                    weekday: 'short',
+                    day: 'numeric',
+                    month: 'short'
+                });
+                
+                if (summary) {
+                    total += summary.totalSales;
+                    daysWithData++;
+                    
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    historyItem.innerHTML = '<div>' + formattedDate + '</div><div class="sale-amount">₹' + summary.totalSales.toFixed(2) + '</div>';
+                    listElement.appendChild(historyItem);
+                } else {
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    historyItem.innerHTML = '<div>' + formattedDate + '</div><div style="color: var(--text-secondary);">No data</div>';
+                    listElement.appendChild(historyItem);
+                }
+            });
+            
+            // Calculate total for all 30 days
+            total = 0;
+            daysWithData = 0;
+            dates.forEach(date => {
+                const summary = salesData.dailySummary[date];
+                if (summary) {
+                    total += summary.totalSales;
+                    daysWithData++;
+                }
+            });
+            
+            document.getElementById('30days-total').textContent = '₹' + total.toFixed(2);
+            document.getElementById('30days-avg').textContent = '₹' + (total / Math.max(daysWithData, 1)).toFixed(2);
+        }
+
+        function loadMonthHistory() {
+            const currentYear = new Date().getFullYear();
+            const currentMonthNum = new Date().getMonth() + 1;
+            const monthKey = currentYear + '-' + currentMonthNum.toString().padStart(2, '0');
+            
+            let total = 0;
+            let daysWithData = 0;
+            const listElement = document.getElementById('month-list');
+            
+            if (!listElement) return;
+            
+            listElement.innerHTML = '';
+            
+            // Get all dates in current month that have data
+            const monthDates = Object.keys(salesData.dailySummary)
+                .filter(date => date.startsWith(monthKey))
+                .sort()
+                .slice(-10); // Show only last 10 days for readability
+            
+            monthDates.forEach(date => {
+                const summary = salesData.dailySummary[date];
+                const dateObj = new Date(date);
+                const formattedDate = dateObj.toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'short'
+                });
+                
+                if (summary) {
+                    total += summary.totalSales;
+                    daysWithData++;
+                    
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    historyItem.innerHTML = '<div>' + formattedDate + '</div><div class="sale-amount">₹' + summary.totalSales.toFixed(2) + '</div>';
+                    listElement.appendChild(historyItem);
+                }
+            });
+            
+            // Calculate total for entire month
+            total = 0;
+            daysWithData = 0;
+            Object.keys(salesData.dailySummary).forEach(date => {
+                if (date.startsWith(monthKey)) {
+                    const summary = salesData.dailySummary[date];
+                    if (summary) {
+                        total += summary.totalSales;
+                        daysWithData++;
+                    }
+                }
+            });
+            
+            document.getElementById('month-total').textContent = '₹' + total.toFixed(2);
+            document.getElementById('month-days').textContent = daysWithData;
+        }
+
+        // Export data functionality
+        function setupExportButtons() {
+            const exportBtn = document.getElementById('export-btn');
+            const downloadCsv = document.getElementById('download-csv');
+            const downloadPdf = document.getElementById('download-pdf');
+            
+            if (exportBtn) exportBtn.addEventListener('click', exportToEmail);
+            if (downloadCsv) downloadCsv.addEventListener('click', downloadCSV);
+            if (downloadPdf) downloadPdf.addEventListener('click', downloadPDF);
+        }
+
+        // Export to email functionality
+        function exportToEmail() {
+            const email = prompt('Please enter your email address to receive the sales report:');
+            
+            if (!email) return;
+            
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                alert('Please enter a valid email address');
+                return;
+            }
+            
+            // Prepare report data
+            const todaySummary = salesData.dailySummary[currentDate] || {
+                totalCash: 0,
+                totalDigital: 0,
+                totalSales: 0,
+                transactionCount: 0
+            };
+            
+            // Get all sales records
+            const allSales = salesData.sales;
+            
+            // Calculate 7-day total
+            let sevenDayTotal = 0;
+            for (let i = 0; i < 7; i++) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                const summary = salesData.dailySummary[dateStr];
+                if (summary) {
+                    sevenDayTotal += summary.totalSales;
+                }
+            }
+            
+            // Create detailed sales records
+            let salesRecords = 'DETAILED SALES RECORDS:\n\n';
+            salesRecords += 'Date       | Time  | Amount  | Method\n';
+            salesRecords += '------------------------------------\n';
+            
+            allSales.forEach(sale => {
+                const saleDate = new Date(sale.date).toLocaleDateString('en-IN');
+                salesRecords += saleDate + ' | ' + sale.timestamp + ' | ₹' + sale.amount.toFixed(2) + ' | ' + sale.paymentMethod + '\n';
+            });
+            
+            // Create email content
+            const subject = 'Udupi Shop Sales Report - ' + new Date().toLocaleDateString('en-IN');
+            const body = 'UDUPI SHOP SALES REPORT\n' +
+                        'Generated on: ' + new Date().toLocaleDateString('en-IN') + '\n\n' +
+                        'TODAY\'S SUMMARY:\n' +
+                        '• Cash Sales: ₹' + todaySummary.totalCash.toFixed(2) + '\n' +
+                        '• Digital Sales: ₹' + todaySummary.totalDigital.toFixed(2) + '\n' +
+                        '• Total Sales: ₹' + todaySummary.totalSales.toFixed(2) + '\n' +
+                        '• Transactions: ' + todaySummary.transactionCount + '\n\n' +
+                        'LAST 7 DAYS TOTAL: ₹' + sevenDayTotal.toFixed(2) + '\n\n' +
+                        salesRecords + '\n\n' +
+                        'Total Records: ' + allSales.length + ' sales\n' +
+                        'Report generated automatically by Udupi Shop Tracker Pro.\n\n' +
+                        'Thank you for using our service!';
+            
+            // Create mailto link
+            const mailtoLink = 'mailto:' + email + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+            
+            // Open email client
+            window.location.href = mailtoLink;
+            
+            // Show confirmation
+            alert('Sales report with all records has been prepared for ' + email + '. Your email client will open with the complete report.');
+        }
+
+        // Download CSV functionality
+        function downloadCSV() {
+            let csvContent = 'Date,Time,Amount,Payment Method\n';
+            
+            salesData.sales.forEach(sale => {
+                const saleDate = new Date(sale.date).toLocaleDateString('en-IN');
+                csvContent += `"${saleDate}","${sale.timestamp}","${sale.amount}","${sale.paymentMethod}"\n`;
+            });
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('hidden', '');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `sales-report-${currentDate}.csv`);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            alert('CSV file downloaded successfully!');
+        }
+
+        // Download PDF functionality (simulated)
+        function downloadPDF() {
+            alert('PDF export feature would be implemented with a proper PDF generation library in a production environment.');
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeUsers();
+            initializeSalesData();
+            initializeAutoEmail();
+            setupAuthTabs();
+            setupLoginForm();
+            setupSignupForm();
+            setupCommonEventListeners();
+            setupDashboardEventListeners();
+            setupExportButtons();
+            updateCurrentDate();
+            loadDashboardData();
+            loadAutoEmailSettings();
+            checkLoginStatus();
+        });
+    </script>
+</body>
+</html>
