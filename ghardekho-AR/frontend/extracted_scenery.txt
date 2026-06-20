@@ -1,0 +1,2 @@
+"\n{/* Ambient stars/horizon glow cylinder */ }\n<mesh position={[0, -5, 0]}>\n  <cylinderGeometry args={[44, 44, 18, 32, 1, true]} />\n  <meshBasicMaterial color=\"#1a0f30\" side={THREE.DoubleSide} transparent opacity={0.65} />\n</mesh>\n\n{/* Large Circu
+<truncated 14577 bytes>

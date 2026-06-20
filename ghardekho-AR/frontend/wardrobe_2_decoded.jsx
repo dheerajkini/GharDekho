@@ -1,0 +1,97 @@
+function Wardrobe({ w, d, color, sel, isOpen }) {
+  const h = 2.4;
+  const c = sel ? "#55efc4" : color;
+  const doorColor = sel ? "#00b894" : "#a07840";
+  
+  const leftDoorRef = useRef();
+  const rightDoorRef = useRef();
+
+  useFrame(() => {\
+<truncated 13031 bytes>","StartLine":"287","TargetContent":""function Wardrobe({ w, d, color, sel }) {
+  const h = 2.2;
+  const c = sel ? "#55efc4" : color;
+  const door = sel ? "#00b894" : "#a07840";
+  return (
+    <group>
+      {/* Main body */}
+      <B pos={[0, h/2, 0]} args={[w, h, d]} color={c} /
+<truncated 6086 bytes>","TargetFile":""c:\\Users\\Dheer\\OneDrive\\Documents\\IDPBL PROJECT\\ghardekho-AR\\frontend\\src\\components\\Canvas3D.jsx"","toolAction":""Replacing furniture 3D models with interactive ones"","toolSummary":""Update 3D model components in Canvas3D.jsx""}}]}
+{"step_index":723,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-06-17T11:30:43Z","tool_calls":[{"name":"view_file","args":{"AbsolutePath":""c:\\Users\\Dheer\\OneDrive\\Documents\\IDPBL PROJECT\\ghardekho-AR\\frontend\\src\\components\\Canvas3D.jsx"","EndLine":"520","StartLine":"490","toolAction":""Viewing SHAPES dictionary mapping"","toolSummary":""SHAPES map in Canvas3D.jsx""}}]}
+{"step_index":726,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-06-17T11:30:47Z","tool_calls":[{"name":"view_file","args":{"AbsolutePath":""c:\\Users\\Dheer\\OneDrive\\Documents\\IDPBL PROJECT\\ghardekho-AR\\frontend\\src\\components\\Canvas3D.jsx"","EndLine":"600","StartLine":"550","toolAction":""Viewing SHAPES dictionary mapping section"","toolSummary":""SHAPES map lines in Canvas3D.jsx""}}]}
+{"step_index":729,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-06-17T11:30:51Z","tool_calls":[{"name":"view_file","args":{"AbsolutePath":""c:\\Users\\Dheer\\OneDrive\\Documents\\IDPBL PROJECT\\ghardekho-AR\\frontend\\src\\components\\Canvas3D.jsx"","EndLine":"650","StartLine":"600","toolAction":""Viewing SHAPES dictionary mapping definition"","toolSummary":""SHAPES mapping definition in Canvas3D.jsx""}}]}
+{"step_index":732,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-06-17T11:30:55Z","tool_calls":[{"name":"replace_file_content","args":{"AllowMultiple":"false","Description":""Updated SHAPES mapping in Canvas3D to register Bookshelf and Window catalog items."","EndLine":"610","Instruction":""Map Bookshelf to Bookshelf and Window to Window3D in SHAPES mapping in Canvas3D.jsx"","ReplacementContent":""const SHAPES = {
+  "Sofa": Sofa, "Armchair": Chair, "Coffee Table": CoffeeTable,
+  "TV Unit": TVUnit, "Double Bed": Bed, "Single Bed": SingleBed,
+  "Wardrobe": Wardrobe, "Study Desk": Desk, "Dining Table": DiningTable,
+  "Chair": C
+<truncated 226 bytes>","StartLine":"602","TargetContent":""const SHAPES = {
+  "Sofa": Sofa, "Armchair": Chair, "Coffee Table": CoffeeTable,
+  "TV Unit": TVUnit, "Double Bed": Bed, "Single Bed": SingleBed,
+  "Wardrobe": Wardrobe, "Study Desk": Desk, "Dining Table": DiningTable,
+  "Chair": C
+<truncated 201 bytes>","TargetFile":""c:\\Users\\Dheer\\OneDrive\\Documents\\IDPBL PROJECT\\ghardekho-AR\\frontend\\src\\components\\Canvas3D.jsx"","toolAction":""Updating SHAPES mapping dictionary"","toolSummary":""Update SHAPES in Canvas3D.jsx""}}]}
+{"step_index":735,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-06-17T11:31:05Z","tool_calls":[{"name":"view_file","args":{"AbsolutePath":""c:\\Users\\Dheer\\OneDrive\\Documents\\IDPBL PROJECT\\ghardekho-AR\\frontend\\src\\components\\Canvas3D.jsx"","EndLine":"1550","StartLine":"1450","toolAction":""Viewing Room integration in Canvas3D"","toolSummary":""Room integration in Canvas3D.jsx""}}]}
+{"step_index":738,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-06-17T11:31:08Z","tool_calls":[{"name":"view_file","args":{"AbsolutePath":""c:\\Users\\Dheer\\OneDrive\\Documents\\IDPBL PROJECT\\ghardekho-AR\\frontend\\src\\components\\Canvas3D.jsx"","EndLine":"1650","StartLine":"1550","toolAction":""Viewing main Canvas3D rendering body"","toolSummary":""Canvas3D main components rendering in Canvas3D.jsx""}}]}
+{"step_index":741,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-06-17T11:31:11Z","tool_calls":[{"name":"view_file","args":{"AbsolutePath":""c:\\Users\\Dheer\\OneDrive\\Documents\\IDPBL PROJECT\\ghardekho-AR\\frontend\\src\\components\\Canvas3D.jsx"","EndLine":"1713","StartLine":"1650","toolAction":""Viewing Room rendering invocation in Canvas3D"","toolSummary":""Room component call in Canvas3D.jsx""}}]}
+{"step_index":744,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-06-17T11:31:14Z","tool_calls":[{"name":"view_file","args":{"AbsolutePath":""c:\\Users\\Dheer\\OneDrive\\Documents\\IDPBL PROJECT\\ghardekho-AR\\frontend\\src\\components\\Canvas3D.jsx"","EndLine":"1450","StartLine":"1410","toolAction":""Viewing FurnitureMesh definition details"","toolSummary":""FurnitureMesh definition in Canvas3D.jsx""}}]}
+{"step_index":747,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-06-17T11:31:18Z","tool_calls":[{"name":"replace_file_content","args":{"AllowMultiple":"false","Description":""Updated FurnitureMesh to receive onInteract, handle drag with 3D window-to-wall snapping, and trigger interaction on select clicks."","EndLine":"1547","Instruction":""Update FurnitureMesh to support onInteract, window-snapping and click-interaction"","ReplacementContent":""function FurnitureMesh({
+  item,
+  selected,
+  onSelect,
+  onDragEnd,
+  onDragMove,
+  onRotateDelta,
+  setOrbitEnabled,
+  rW,
+  rL,
+  vastuEnabled,
+  onInteract
+}) {
+  const { camera, gl } = useThree();
+  const ref = useRef();
+  const isDra
+<truncated 4830 bytes>","StartLine":"1428","TargetContent":""function FurnitureMesh({
+  item,
+  selected,
+  onSelect,
+  onDragEnd,
+  onDragMove,
+  onRotateDelta,
+  setOrbitEnabled,
+  rW,
+  rL,
+  vastuEnabled
+}) {
+  const { camera, gl } = useThree();
+  const ref = useRef();
+  const isDrag = useRef(fals
+<truncated 3694 bytes>","TargetFile":""c:\\Users\\Dheer\\OneDrive\\Documents\\IDPBL PROJECT\\ghardekho-AR\\frontend\\src\\components\\Canvas3D.jsx"","toolAction":""Updating FurnitureMesh event handling and properties"","toolSummary":""Update FurnitureMesh in Canvas3D.jsx""}}]}
+{"step_index":751,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","created_at":"2026-06-17T11:31:30Z","tool_calls":[{"name":"replace_file_content","args":{"AllowMultiple":"false","Description":""Updated main Canvas3D signature, mapped item fields (isOpen, isLit), passed them to child elements, and enabled touchAction: none on Canvas."","EndLine":"1712","Instruction":""Update Canvas3D signature, map isOpen/isLit fields, pass them to components and add touchAction: none to Canvas style"","ReplacementContent":""export default function Canvas3D({
+  room,
+  sharedItems,
+  onItemsChange,
+  onItemsCommit,
+  selectedId,
+  setSelectedId,
+  theme,
+  wallColor,
+  showDims,
+  vastuEnabled,
+  floorPattern,
+  wallPattern,
+  doorPos,
+  setDoorPos,
+  onInterac
+<truncated 5159 bytes>","StartLine":"1563","TargetContent":""export default function Canvas3D({
+  room,
+  sharedItems,
+  onItemsChange,
+  onItemsCommit,
+  selectedId,
+  setSelectedId,
+  theme,
+  wallColor,
+  showDims,
+  vastuEnabled,
+  floorPattern,
+  wallP

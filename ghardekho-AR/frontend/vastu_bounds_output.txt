@@ -1,0 +1,25 @@
+VastuOverlay block length: 4730
+VastuOverlay snippet:
+function VastuOverlay({ rW, rL, selectedId, sharedItems }) {
+  const selItem = sharedItems.find(i => i.id === selectedId);
+
+  // Define 9 grid coordinates & labels
+  const cells = [
+    { id: "NW", x: -rW / 3, z: -rL / 3, label: "NW · Vayu", sub: "Air 🍃" },
+    { id: "N", x: 0, z: -rL / 3, label: "N · Kubera", sub: "Wealth 💰" },
+    { id: "NE", x: rW / 3, z: -rL / 3, label: "NE · Ishanya", sub: "Water 💧" },
+    { id: "W", x: -rW / 3, z: 0, label: "W · Varuna", sub: "Stability 🌊" },
+    { id: "C"
+...
+FurnitureMesh snippet (preceding lines):
+     userSelect: "none",
+                whiteSpace: "nowrap"
+              }}
+            >
+              <div style={{
+                background: isActive ? "rgba(7, 7, 20, 0.88)" : "rgba(7, 7, 20, 0.6)",
+                border: isActive ? `1.5px solid ${compatibility.color}` : "1.5px solid rgba(255, 255, 255, 0.1)",
+                borderRadius: "15px",
+                padding: "4px 10px",
+                fontSize: "10px",
+// ── Furniture mesh (inside Canvas) ───────────────────────────────

@@ -1,0 +1,1 @@
+function VastuOverlay\"","SearchPath":"\"c:\\\\Users\\\\Dheer\\\\OneDrive\\\\Documents\\\\IDPBL PROJECT\\\\ghardekho-AR\\\\frontend\\\\src\\\\components\\\\Canvas3D.jsx\"","toolAction":"\"Finding VastuOverlay function\"","toolSummary":"\"Finding VastuOverlay\""}}]}

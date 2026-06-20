@@ -1,0 +1,1998 @@
+﻿diff --git a/src/components/Canvas3D.jsx b/src/components/Canvas3D.jsx
+index 40c8a0e..9a1bd86 100644
+--- a/src/components/Canvas3D.jsx
++++ b/src/components/Canvas3D.jsx
+@@ -1,46 +1,257 @@
+-import { Canvas, useThree } from "@react-three/fiber";
+-import { OrbitControls } from "@react-three/drei";
+-import { useState, useRef, useEffect, useCallback } from "react";
++import { Canvas, useThree, useFrame } from "@react-three/fiber";
++import { OrbitControls, Html } from "@react-three/drei";
++import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+ import * as THREE from "three";
++import { getZoneFromCoords, getVastuCompatibility, VASTU_ZONES } from "../utils/vastuRules";
++import { playDoorSound } from "../utils/sounds";
+ 
+-const SCALE = 50;
+ 
+-const CATALOG = [
+-  { name:"Sofa",         icon:"≡ƒ¢ï∩╕Å", length:7,   width:3,   color:"#7c6b9e" },
+-  { name:"Armchair",     icon:"≡ƒ¬æ", length:3,   width:3,   color:"#9b7ec8" },
+-  { name:"Coffee Table", icon:"≡ƒƒ½", length:4,   width:2,   color:"#a07840" },
+-  { name:"TV Unit",      icon:"≡ƒô║", length:1.5, width:5,   color:"#2d3436" },
+-  { name:"Double Bed",   icon:"≡ƒ¢Å∩╕Å", length:6.5, width:5,   color:"#0984e3" },
+-  { name:"Single Bed",   icon:"≡ƒ¢Å∩╕Å", length:6,   width:3,   color:"#74b9ff" },
+-  { name:"Wardrobe",     icon:"≡ƒÜ¬", length:2,   width:4,   color:"#c8a96e" },
+-  { name:"Study Desk",   icon:"≡ƒûÑ∩╕Å", length:2,   width:4,   color:"#fdcb6e" },
+-  { name:"Dining Table", icon:"≡ƒì╜∩╕Å", length:5,   width:3,   color:"#e17055" },
+-  { name:"Chair",        icon:"≡ƒ¬æ", length:2,   width:2,   color:"#d4a96a" },
+-  { name:"Bookshelf",    icon:"≡ƒôÜ", length:1,   width:3,   color:"#6c5ce7" },
+-  { name:"Side Table",   icon:"≡ƒƒñ", length:2,   width:2,   color:"#a29bfe" },
+-];
+-
+-const FUR_COLORS = [
+-  "#7c6b9e","#0984e3","#e17055","#00b894",
+-  "#fdcb6e","#e84393","#a29bfe","#2d3436",
+-  "#c8a96e","#74b9ff","#55efc4","#fd79a8",
+-];
++const SCALE = 50;
+ 
+ const META = {
+-  "Sofa":         { w:2,   d:1    },
+-  "Armchair":     { w:0.9, d:0.9  },
+-  "Coffee Table": { w:1.2, d:0.7  },
+-  "TV Unit":      { w:1.5, d:0.45 },
+-  "Double Bed":   { w:1.6, d:2    },
+-  "Single Bed":   { w:1.0, d:2    },
+-  "Wardrobe":     { w:1.2, d:0.6  },
+-  "Study Desk":   { w:1.2, d:0.6  },
+-  "Dining Table": { w:1.5, d:0.9  },
+-  "Chair":        { w:0.6, d:0.6  },
+-  "Bookshelf":    { w:1.0, d:0.3  },
+-  "Side Table":   { w:0.5, d:0.5  },
++  "Sofa": { w: 2, d: 1 },
++  "Armchair": { w: 0.9, d: 0.9 },
++  "Coffee Table": { w: 1.2, d: 0.7 },
++  "TV Unit": { w: 1.5, d: 0.45 },
++  "Double Bed": { w: 1.6, d: 2 },
++  "Single Bed": { w: 1.0, d: 2 },
++  "Wardrobe": { w: 1.2, d: 0.6 },
++  "Study Desk": { w: 1.2, d: 0.6 },
++  "Dining Table": { w: 1.5, d: 0.9 },
++  "Chair": { w: 0.6, d: 0.6 },
++  "Bookshelf": { w: 1.0, d: 0.3 },
++  "Side Table": { w: 0.5, d: 0.5 },
+ };
+ 
++// ΓöÇΓöÇ Procedural Floor Texture Generator ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++function createFloorTexture(theme, pattern) {
++  const canvas = document.createElement("canvas");
++  canvas.width = 1024;
++  canvas.height = 1024;
++  const ctx = canvas.getContext("2d");
++
++  const themeColors = {
++    Modern:  "#C8C0B8",
++    Classic: "#C8A96E",
++    Minimal: "#E8E8E8",
++    Dark:    "#2a2a3a",
++  };
++  const baseColor = themeColors[theme] || "#C8A96E";
++
++  if (pattern === "Modern Marble") {
++    ctx.fillStyle = baseColor;
++    ctx.fillRect(0, 0, 1024, 1024);
++
++    // Marble veins
++    for (let i = 0; i < 24; i++) {
++      const hash = Math.abs(Math.sin(i * 17.38) * 54321.12) % 1;
++      ctx.strokeStyle = i % 2 === 0 ? "rgba(45, 45, 60, 0.28)" : "rgba(212, 175, 55, 0.35)"; // grey & gold veins
++      ctx.lineWidth = 1.5 + hash * 5;
++      ctx.beginPath();
++      ctx.moveTo(hash * 1024, 0);
++      ctx.bezierCurveTo(
++        (hash + 0.45) * 1024, 250,
++        (hash - 0.35) * 1024, 750,
++        Math.abs(1 - hash) * 1024, 1024
++      );
++      ctx.stroke();
++    }
++    // High-contrast grout lines grid
++    ctx.strokeStyle = "rgba(0,0,0,0.25)";
++    ctx.lineWidth = 5.0;
++    for (let x = 0; x <= 1024; x += 256) {
++      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 1024); ctx.stroke();
++      ctx.beginPath(); ctx.moveTo(0, x); ctx.lineTo(1024, x); ctx.stroke();
++    }
++  } else if (pattern === "Concrete Grids") {
++    ctx.fillStyle = baseColor;
++    ctx.fillRect(0, 0, 1024, 1024);
++
++    // Noise speckles
++    for (let i = 0; i < 800; i++) {
++      const x = Math.random() * 1024;
++      const y = Math.random() * 1024;
++      ctx.fillStyle = Math.random() > 0.5 ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.25)";
++      ctx.fillRect(x, y, 3, 3);
++    }
++    // High-contrast deep concrete gaps
++    ctx.strokeStyle = "rgba(0,0,0,0.45)";
++    ctx.lineWidth = 6.0;
++    for (let x = 0; x <= 1024; x += 256) {
++      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 1024); ctx.stroke();
++      ctx.beginPath(); ctx.moveTo(0, x); ctx.lineTo(1024, x); ctx.stroke();
++    }
++  } else if (pattern === "Checkerboard") {
++    const size = 128;
++    for (let y = 0; y < 1024; y += size) {
++      for (let x = 0; x < 1024; x += size) {
++        const isDark = ((x / size) + (y / size)) % 2 === 0;
++        ctx.fillStyle = isDark ? "#111116" : baseColor;
++        ctx.fillRect(x, y, size, size);
++        ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
++        ctx.lineWidth = 1.5;
++        ctx.strokeRect(x, y, size, size);
++      }
++    }
++  } else if (pattern === "Chevron Wood") {
++    ctx.fillStyle = baseColor;
++    ctx.fillRect(0, 0, 1024, 1024);
++
++    const plankW = 64;
++    const plankH = 128;
++    for (let y = -plankH; y < 1024 + plankH; y += plankH) {
++      for (let x = -plankW; x < 1024 + plankW; x += plankW * 2) {
++        // Left column
++        ctx.save();
++        ctx.translate(x, y);
++        ctx.rotate(Math.PI / 4);
++        ctx.fillStyle = (Math.sin(x * 12.98 + y) > 0) ? "rgba(0,0,0,0.14)" : "rgba(255,255,255,0.08)";
++        ctx.fillRect(0, 0, plankW, plankH);
++        ctx.strokeStyle = "rgba(0,0,0,0.4)";
++        ctx.lineWidth = 2.0;
++        ctx.strokeRect(0, 0, plankW, plankH);
++        ctx.restore();
++
++        // Right column
++        ctx.save();
++        ctx.translate(x + plankW * 2, y);
++        ctx.rotate(-Math.PI / 4);
++        ctx.fillStyle = (Math.sin(x * 12.98 + y + 10) > 0) ? "rgba(0,0,0,0.14)" : "rgba(255,255,255,0.08)";
++        ctx.fillRect(-plankW, 0, plankW, plankH);
++        ctx.strokeStyle = "rgba(0,0,0,0.4)";
++        ctx.lineWidth = 2.0;
++        ctx.strokeRect(-plankW, 0, plankW, plankH);
++        ctx.restore();
++      }
++    }
++  } else {
++    // Classic Planks (Wood planks)
++    ctx.fillStyle = baseColor;
++    ctx.fillRect(0, 0, 1024, 1024);
++
++    const plankH = 64;
++    const plankW = 256;
++    for (let y = 0; y < 1024; y += plankH) {
++      const xOffset = (Math.floor(y / plankH) % 2) * (plankW / 2);
++      for (let x = -plankW; x < 1024 + plankW; x += plankW) {
++        const hash = Math.abs(Math.sin(x * 12.9898 + y * 78.233) * 43758.5453) % 1;
++        ctx.fillStyle = hash < 0.33 ? "rgba(0,0,0,0.1)" : hash < 0.66 ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)";
++        ctx.fillRect(x + xOffset, y, plankW, plankH);
++
++        ctx.strokeStyle = "rgba(0,0,0,0.28)";
++        ctx.lineWidth = 1.8;
++        ctx.strokeRect(x + xOffset, y, plankW, plankH);
++      }
++    }
++  }
++
++  const texture = new THREE.CanvasTexture(canvas);
++  texture.wrapS = THREE.RepeatWrapping;
++  texture.wrapT = THREE.RepeatWrapping;
++  texture.minFilter = THREE.LinearMipmapLinearFilter;
++  texture.magFilter = THREE.LinearFilter;
++  texture.generateMipmaps = true;
++  return texture;
++}
++
++// ΓöÇΓöÇ Procedural Wall Texture Generator ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++function createWallTexture(color, pattern) {
++  const canvas = document.createElement("canvas");
++  canvas.width = 512;
++  canvas.height = 512;
++  const ctx = canvas.getContext("2d");
++
++  ctx.fillStyle = color || "#F0EDE8";
++  ctx.fillRect(0, 0, 512, 512);
++
++  if (pattern === "Vertical Panels") {
++    for (let x = 0; x < 512; x += 32) {
++      ctx.fillStyle = "rgba(0, 0, 0, 0.28)";
++      ctx.fillRect(x, 0, 6, 512);
++      ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
++      ctx.fillRect(x + 6, 0, 26, 512);
++    }
++  } else if (pattern === "Textured Brick") {
++    const brickH = 32;
++    const brickW = 64;
++    ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
++    ctx.lineWidth = 2.8;
++    for (let y = 0; y < 512; y += brickH) {
++      const offset = (Math.floor(y / brickH) % 2) * (brickW / 2);
++      ctx.beginPath();
++      ctx.moveTo(0, y);
++      ctx.lineTo(512, y);
++      ctx.stroke();
++
++      ctx.strokeStyle = "rgba(255, 255, 255, 0.32)";
++      ctx.lineWidth = 1.2;
++      ctx.beginPath();
++      ctx.moveTo(0, y + 2);
++      ctx.lineTo(512, y + 2);
++      ctx.stroke();
++
++      ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
++      ctx.lineWidth = 2.8;
++      for (let x = -brickW; x < 512 + brickW; x += brickW) {
++        ctx.beginPath();
++        ctx.moveTo(x + offset, y);
++        ctx.lineTo(x + offset, y + brickH);
++        ctx.stroke();
++      }
++    }
++  } else if (pattern === "Geometric Deco") {
++    ctx.strokeStyle = "#d4a96a";
++    ctx.lineWidth = 1.8;
++    for (let x = 0; x < 512; x += 64) {
++      for (let y = 0; y < 512; y += 64) {
++        ctx.beginPath();
++        ctx.moveTo(x, y);
++        ctx.lineTo(x + 64, y + 64);
++        ctx.moveTo(x + 64, y);
++        ctx.lineTo(x, y + 64);
++        ctx.stroke();
++
++        ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
++        ctx.strokeRect(x + 8, y + 8, 48, 48);
++        ctx.strokeStyle = "#d4a96a";
++        ctx.strokeRect(x + 16, y + 16, 32, 32);
++      }
++    }
++  } else if (pattern === "Floral Damask") {
++    ctx.fillStyle = "rgba(0, 0, 0, 0.12)";
++    ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
++    ctx.lineWidth = 1.8;
++    for (let x = 32; x < 512; x += 64) {
++      for (let y = 32; y < 512; y += 64) {
++        ctx.beginPath();
++        ctx.moveTo(x, y - 28);
++        ctx.lineTo(x + 28, y);
++        ctx.lineTo(x, y + 28);
++        ctx.lineTo(x - 28, y);
++        ctx.closePath();
++        ctx.stroke();
++
++        ctx.beginPath();
++        ctx.arc(x, y, 8, 0, Math.PI * 2);
++        ctx.fill();
++
++        ctx.beginPath();
++        ctx.arc(x - 12, y, 4, 0, Math.PI * 2);
++        ctx.arc(x + 12, y, 4, 0, Math.PI * 2);
++        ctx.arc(x, y - 12, 4, 0, Math.PI * 2);
++        ctx.arc(x, y + 12, 4, 0, Math.PI * 2);
++        ctx.fill();
++      }
++    }
++  }
++
++  const texture = new THREE.CanvasTexture(canvas);
++  texture.wrapS = THREE.RepeatWrapping;
++  texture.wrapT = THREE.RepeatWrapping;
++  texture.repeat.set(2.5, 2.5);
++  return texture;
++}
++
+ // ΓöÇΓöÇ Box helper ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+ function B({ pos, args, color, emissive }) {
+   return (
+@@ -60,12 +271,12 @@ function Sofa({ w, d, color, sel }) {
+   const c = sel ? "#a29bfe" : color;
+   return (
+     <group>
+-      <B pos={[0,0.2,0]}          args={[w,0.4,d]}              color={c} />
+-      <B pos={[0,0.65,-d/2+0.09]} args={[w,0.7,0.18]}           color={c} />
+-      <B pos={[-w/2+0.11,0.47,0]} args={[0.22,0.55,d]}          color={sel?"#8b7fe8":"#4a3d60"} />
+-      <B pos={[w/2-0.11,0.47,0]}  args={[0.22,0.55,d]}          color={sel?"#8b7fe8":"#4a3d60"} />
+-      <B pos={[-w/4,0.47,0.03]}   args={[w/2-0.1,0.14,d-0.22]} color={sel?"#c4baff":"#7c6b9e"} />
+-      <B pos={[w/4,0.47,0.03]}    args={[w/2-0.1,0.14,d-0.22]} color={sel?"#c4baff":"#7c6b9e"} />
++      <B pos={[0, 0.2, 0]} args={[w, 0.4, d]} color={c} />
++      <B pos={[0, 0.65, -d / 2 + 0.09]} args={[w, 0.7, 0.18]} color={c} />
++      <B pos={[-w / 2 + 0.11, 0.47, 0]} args={[0.22, 0.55, d]} color={sel ? "#8b7fe8" : "#4a3d60"} />
++      <B pos={[w / 2 - 0.11, 0.47, 0]} args={[0.22, 0.55, d]} color={sel ? "#8b7fe8" : "#4a3d60"} />
++      <B pos={[-w / 4, 0.47, 0.03]} args={[w / 2 - 0.1, 0.14, d - 0.22]} color={sel ? "#c4baff" : "#7c6b9e"} />
++      <B pos={[w / 4, 0.47, 0.03]} args={[w / 2 - 0.1, 0.14, d - 0.22]} color={sel ? "#c4baff" : "#7c6b9e"} />
+     </group>
+   );
+ }
+@@ -74,12 +285,12 @@ function Bed({ w, d, color, sel }) {
+   const c = sel ? "#74b9ff" : color;
+   return (
+     <group>
+-      <B pos={[0,0.14,0]}           args={[w+0.1,0.28,d+0.1]}   color={c} />
+-      <B pos={[0,0.37,0.09]}        args={[w-0.05,0.18,d-0.18]} color={sel?"#f0f0f0":"#f0ece4"} />
+-      <B pos={[0,0.62,-d/2]}        args={[w+0.1,0.75,0.1]}     color={c} />
+-      <B pos={[-w/4,0.49,-d/2+0.3]} args={[0.48,0.09,0.28]}     color="#fff" />
+-      <B pos={[w/4,0.49,-d/2+0.3]}  args={[0.48,0.09,0.28]}     color="#fff" />
+-      <B pos={[0,0.49,0.18]}        args={[w-0.1,0.07,d*0.55]}  color={sel?"#74b9ff":"#a8c4e0"} />
++      <B pos={[0, 0.14, 0]} args={[w + 0.1, 0.28, d + 0.1]} color={c} />
++      <B pos={[0, 0.37, 0.09]} args={[w - 0.05, 0.18, d - 0.18]} color={sel ? "#f0f0f0" : "#f0ece4"} />
++      <B pos={[0, 0.62, -d / 2]} args={[w + 0.1, 0.75, 0.1]} color={c} />
++      <B pos={[-w / 4, 0.49, -d / 2 + 0.3]} args={[0.48, 0.09, 0.28]} color="#fff" />
++      <B pos={[w / 4, 0.49, -d / 2 + 0.3]} args={[0.48, 0.09, 0.28]} color="#fff" />
++      <B pos={[0, 0.49, 0.18]} args={[w - 0.1, 0.07, d * 0.55]} color={sel ? "#74b9ff" : "#a8c4e0"} />
+     </group>
+   );
+ }
+@@ -88,23 +299,42 @@ function DiningTable({ w, d, color, sel }) {
+   const c = sel ? "#fab1a0" : color;
+   return (
+     <group>
+-      <B pos={[0,0.75,0]} args={[w,0.06,d]} color={c} />
+-      {[[-w/2+0.08,-d/2+0.08],[w/2-0.08,-d/2+0.08],
+-        [-w/2+0.08,d/2-0.08],[w/2-0.08,d/2-0.08]].map(([x,z],i)=>(
+-        <B key={i} pos={[x,0.37,z]} args={[0.07,0.74,0.07]} color={sel?"#e17055":"#6B3410"} />
++      <B pos={[0, 0.75, 0]} args={[w, 0.06, d]} color={c} />
++      {[[-w / 2 + 0.08, -d / 2 + 0.08], [w / 2 - 0.08, -d / 2 + 0.08],
++      [-w / 2 + 0.08, d / 2 - 0.08], [w / 2 - 0.08, d / 2 - 0.08]].map(([x, z], i) => (
++        <B key={i} pos={[x, 0.37, z]} args={[0.07, 0.74, 0.07]} color={sel ? "#e17055" : "#6B3410"} />
+       ))}
+     </group>
+   );
+ }
+ 
+-function Wardrobe({ w, d, color, sel }) {
++function Wardrobe({ w, d, color, sel, isOpen }) {
+   const h = 2.0;
+   const c = sel ? "#55efc4" : color;
++  const leftDoorRef = useRef();
++  const rightDoorRef = useRef();
++
++  useFrame(() => {
++    const targetAngle = isOpen ? -Math.PI / 1.8 : 0;
++    if (leftDoorRef.current) {
++      leftDoorRef.current.rotation.y = THREE.MathUtils.lerp(leftDoorRef.current.rotation.y, targetAngle, 0.15);
++    }
++    if (rightDoorRef.current) {
++      rightDoorRef.current.rotation.y = THREE.MathUtils.lerp(rightDoorRef.current.rotation.y, -targetAngle, 0.15);
++    }
++  });
++
+   return (
+     <group>
+-      <B pos={[0,h/2,0]}            args={[w,h,d]}                 color={c} />
+-      <B pos={[-w/4,h/2,d/2+0.01]} args={[w/2-0.02,h-0.04,0.03]} color={sel?"#00b894":"#b8995e"} />
+-      <B pos={[w/4,h/2,d/2+0.01]}  args={[w/2-0.02,h-0.04,0.03]} color={sel?"#00b894":"#b8995e"} />
++      <B pos={[0, h / 2, 0]} args={[w, h, d]} color={c} />
++      <group ref={leftDoorRef} position={[-w / 2, h / 2, d / 2]}>
++        <B pos={[w / 4, 0, 0.01]} args={[w / 2 - 0.02, h - 0.04, 0.03]} color={sel ? "#00b894" : "#b8995e"} />
++        <B pos={[w / 2 - 0.06, 0, 0.03]} args={[0.02, 0.2, 0.02]} color="#d4a96a" />
++      </group>
++      <group ref={rightDoorRef} position={[w / 2, h / 2, d / 2]}>
++        <B pos={[-w / 4, 0, 0.01]} args={[w / 2 - 0.02, h - 0.04, 0.03]} color={sel ? "#00b894" : "#b8995e"} />
++        <B pos={[-w / 2 + 0.06, 0, 0.03]} args={[0.02, 0.2, 0.02]} color="#d4a96a" />
++      </group>
+     </group>
+   );
+ }
+@@ -113,9 +343,9 @@ function Desk({ w, d, color, sel }) {
+   const c = sel ? "#ffeaa7" : color;
+   return (
+     <group>
+-      <B pos={[0,0.75,0]}         args={[w,0.05,d]}         color={c} />
+-      <B pos={[w/2-0.19,0.35,0]}  args={[0.38,0.7,d-0.05]} color={sel?"#fdcb6e":"#c49a5a"} />
+-      <B pos={[0,1.14,-d/2+0.09]} args={[0.58,0.36,0.04]}  color="#1a1a2e" emissive="#1a1a3e" />
++      <B pos={[0, 0.75, 0]} args={[w, 0.05, d]} color={c} />
++      <B pos={[w / 2 - 0.19, 0.35, 0]} args={[0.38, 0.7, d - 0.05]} color={sel ? "#fdcb6e" : "#c49a5a"} />
++      <B pos={[0, 1.14, -d / 2 + 0.09]} args={[0.58, 0.36, 0.04]} color="#1a1a2e" emissive="#1a1a3e" />
+     </group>
+   );
+ }
+@@ -124,9 +354,9 @@ function TVUnit({ w, d, color, sel }) {
+   const c = sel ? "#636e72" : color;
+   return (
+     <group>
+-      <B pos={[0,0.24,0]}          args={[w,0.48,d]}          color={c} />
+-      <B pos={[0,0.84,-d/2+0.03]}  args={[w*0.94,0.52,0.06]} color="#111" />
+-      <B pos={[0,0.84,-d/2+0.001]} args={[w*0.91,0.5,0.001]} color="#1a1a3e" emissive="#2a2a5e" />
++      <B pos={[0, 0.24, 0]} args={[w, 0.48, d]} color={c} />
++      <B pos={[0, 0.84, -d / 2 + 0.03]} args={[w * 0.94, 0.52, 0.06]} color="#111" />
++      <B pos={[0, 0.84, -d / 2 + 0.001]} args={[w * 0.91, 0.5, 0.001]} color="#1a1a3e" emissive="#2a2a5e" />
+     </group>
+   );
+ }
+@@ -135,11 +365,11 @@ function Chair({ w, d, color, sel }) {
+   const c = sel ? "#ffeaa7" : color;
+   return (
+     <group>
+-      <B pos={[0,0.22,0]}          args={[w,0.05,d]}   color={c} />
+-      <B pos={[0,0.52,-d/2+0.025]} args={[w,0.5,0.05]} color={c} />
+-      {[[-w/2+0.06,-d/2+0.06],[w/2-0.06,-d/2+0.06],
+-        [-w/2+0.06,d/2-0.06],[w/2-0.06,d/2-0.06]].map(([x,z],i)=>(
+-        <B key={i} pos={[x,0.11,z]} args={[0.05,0.22,0.05]} color="#8B5a2b" />
++      <B pos={[0, 0.22, 0]} args={[w, 0.05, d]} color={c} />
++      <B pos={[0, 0.52, -d / 2 + 0.025]} args={[w, 0.5, 0.05]} color={c} />
++      {[[-w / 2 + 0.06, -d / 2 + 0.06], [w / 2 - 0.06, -d / 2 + 0.06],
++      [-w / 2 + 0.06, d / 2 - 0.06], [w / 2 - 0.06, d / 2 - 0.06]].map(([x, z], i) => (
++        <B key={i} pos={[x, 0.11, z]} args={[0.05, 0.22, 0.05]} color="#8B5a2b" />
+       ))}
+     </group>
+   );
+@@ -149,118 +379,1039 @@ function CoffeeTable({ w, d, color, sel }) {
+   const c = sel ? "#fdcb6e" : color;
+   return (
+     <group>
+-      <B pos={[0,0.38,0]} args={[w,0.05,d]} color={c} />
+-      {[[-w/2+0.07,-d/2+0.07],[w/2-0.07,-d/2+0.07],
+-        [-w/2+0.07,d/2-0.07],[w/2-0.07,d/2-0.07]].map(([x,z],i)=>(
+-        <B key={i} pos={[x,0.18,z]} args={[0.06,0.36,0.06]} color={sel?"#e17055":"#6B4F10"} />
++      <B pos={[0, 0.38, 0]} args={[w, 0.05, d]} color={c} />
++      {[[-w / 2 + 0.07, -d / 2 + 0.07], [w / 2 - 0.07, -d / 2 + 0.07],
++      [-w / 2 + 0.07, d / 2 - 0.07], [w / 2 - 0.07, d / 2 - 0.07]].map(([x, z], i) => (
++        <B key={i} pos={[x, 0.18, z]} args={[0.06, 0.36, 0.06]} color={sel ? "#e17055" : "#6B4F10"} />
++      ))}
++    </group>
++  );
++}
++
++function FloorLamp({ w, d, color, sel, isLit }) {
++  const c = sel ? "#ffeaa7" : color;
++  const lampLitRef = useRef();
++
++  useFrame(() => {
++    if (lampLitRef.current) {
++      lampLitRef.current.emissiveIntensity = THREE.MathUtils.lerp(
++        lampLitRef.current.emissiveIntensity,
++        isLit ? 1.5 : 0.0,
++        0.12
++      );
++    }
++  });
++
++  return (
++    <group>
++      <mesh position={[0, 0.03, 0]} castShadow>
++        <cylinderGeometry args={[0.18, 0.2, 0.06, 16]} />
++        <meshStandardMaterial color={sel ? "#636e72" : "#333"} metalness={0.8} />
++      </mesh>
++      <mesh position={[0, 0.8, 0]} castShadow>
++        <cylinderGeometry args={[0.025, 0.025, 1.5, 8]} />
++        <meshStandardMaterial color="#555" metalness={0.9} />
++      </mesh>
++      <mesh position={[0, 1.5, 0]} castShadow>
++        <cylinderGeometry args={[0.2, 0.28, 0.35, 16, 1, true]} />
++        <meshStandardMaterial color={c} roughness={0.9} side={THREE.DoubleSide} />
++      </mesh>
++      <mesh position={[0, 1.45, 0]}>
++        <sphereGeometry args={[0.06, 12, 12]} />
++        <meshStandardMaterial
++          ref={lampLitRef}
++          color="#ffffff"
++          emissive="#fffde7"
++          emissiveIntensity={isLit ? 1.5 : 0.0}
++        />
++      </mesh>
++      {isLit && (
++        <pointLight
++          position={[0, 1.4, 0]}
++          intensity={1.8}
++          distance={8}
++          color="#ffeaa7"
++          castShadow
++          shadow-bias={-0.002}
++        />
++      )}
++    </group>
++  );
++}
++
++function WindowShape({ w, d, color, sel, isOpen }) {
++  const c = sel ? "#74b9ff" : color;
++  const sashRef = useRef();
++
++  useFrame(() => {
++    if (sashRef.current) {
++      const targetX = isOpen ? w * 0.42 : 0;
++      sashRef.current.position.x = THREE.MathUtils.lerp(
++        sashRef.current.position.x,
++        targetX,
++        0.12
++      );
++    }
++  });
++
++  return (
++    <group>
++      <B pos={[0, 0.6, 0]} args={[w, 1.2, 0.08]} color={sel ? "#55efc4" : "#2d3436"} />
++      <mesh position={[w / 4, 0.6, -0.015]}>
++        <boxGeometry args={[w / 2 - 0.04, 1.12, 0.02]} />
++        <meshStandardMaterial color="#b3e5fc" transparent opacity={0.3} roughness={0.05} metalness={0.9} />
++      </mesh>
++      <group ref={sashRef} position={[0, 0, 0]}>
++        <mesh position={[-w / 4, 0.6, 0.015]}>
++          <boxGeometry args={[w / 2 - 0.02, 1.12, 0.02]} />
++          <meshStandardMaterial color="#81d4fa" transparent opacity={0.45} roughness={0.05} metalness={0.9} />
++        </mesh>
++        <B pos={[-w / 4, 0.6, 0.015]} args={[w / 2 - 0.02, 1.12, 0.03]} color="#555" />
++      </group>
++    </group>
++  );
++}
++
++function Rug3D({ w, d, color, sel }) {
++  return (
++    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]} receiveShadow>
++      <planeGeometry args={[w, d]} />
++      <meshStandardMaterial color={sel ? "#a29bfe" : color} roughness={0.95} />
++    </mesh>
++  );
++}
++
++function ACUnit({ w, d, color, sel }) {
++  const c = sel ? "#74b9ff" : color;
++  return (
++    <group position={[0, 2.2, 0]}>
++      <B pos={[0, 0, 0]} args={[w, 0.28, d]} color={c} />
++      <B pos={[0, -0.06, d / 2 + 0.01]} args={[w * 0.85, 0.1, 0.02]} color={sel ? "#636e72" : "#b2bec3"} />
++    </group>
++  );
++}
++
++function ShoeRack({ w, d, color, sel }) {
++  const c = sel ? "#a29bfe" : color;
++  return (
++    <group>
++      <B pos={[0, 0.45, 0]} args={[w, 0.9, d]} color={c} />
++      {/* Shelves */}
++      <B pos={[0, 0.15, 0]} args={[w - 0.04, 0.02, d - 0.04]} color={sel ? "#636e72" : "#8b7355"} />
++      <B pos={[0, 0.45, 0]} args={[w - 0.04, 0.02, d - 0.04]} color={sel ? "#636e72" : "#8b7355"} />
++      <B pos={[0, 0.75, 0]} args={[w - 0.04, 0.02, d - 0.04]} color={sel ? "#636e72" : "#8b7355"} />
++    </group>
++  );
++}
++
++function Mirror3D({ w, d, color, sel }) {
++  return (
++    <group position={[0, 1.2, 0]}>
++      {/* Frame */}
++      <B pos={[0, 0, 0]} args={[w, 1.2, 0.04]} color={sel ? "#6c5ce7" : "#8b5a2b"} />
++      {/* Reflective glass */}
++      <mesh position={[0, 0, 0.025]} castShadow>
++        <planeGeometry args={[w - 0.08, 1.1]} />
++        <meshStandardMaterial color="#b3e5fc" metalness={0.95} roughness={0.05} />
++      </mesh>
++    </group>
++  );
++}
++
++function Plant3D({ w, d, color, sel }) {
++  return (
++    <group>
++      {/* Pot */}
++      <mesh position={[0, 0.2, 0]} castShadow>
++        <cylinderGeometry args={[0.18, 0.14, 0.4, 16]} />
++        <meshStandardMaterial color={sel ? "#e17055" : "#b36c4f"} roughness={0.8} />
++      </mesh>
++      {/* Leaves */}
++      {[0, 60, 120, 180, 240, 300].map((angle, i) => (
++        <mesh key={i} position={[0, 0.55, 0]} rotation={[0.3, (angle * Math.PI) / 180, 0.1]} castShadow>
++          <coneGeometry args={[0.06, 0.6, 5]} />
++          <meshStandardMaterial color={sel ? "#55efc4" : color} roughness={0.9} />
++        </mesh>
+       ))}
+     </group>
+   );
+ }
+ 
+ const SHAPES = {
+-  "Sofa":Sofa, "Armchair":Chair, "Coffee Table":CoffeeTable,
+-  "TV Unit":TVUnit, "Double Bed":Bed, "Single Bed":Bed,
+-  "Wardrobe":Wardrobe, "Study Desk":Desk, "Dining Table":DiningTable,
+-  "Chair":Chair, "Bookshelf":Wardrobe, "Side Table":CoffeeTable,
++  "Sofa": Sofa, "Armchair": Chair, "Coffee Table": CoffeeTable,
++  "TV Unit": TVUnit, "Double Bed": Bed, "Single Bed": Bed,
++  "Wardrobe": Wardrobe, "Study Desk": Desk, "Dining Table": DiningTable,
++  "Chair": Chair, "Bookshelf": Wardrobe, "Side Table": CoffeeTable,
++  "Floor Lamp": FloorLamp, "Rug": Rug3D, "AC Unit": ACUnit,
++  "Shoe Rack": ShoeRack, "Mirror": Mirror3D, "Plant": Plant3D,
++  "Window": WindowShape,
+ };
+ 
++function OutdoorScenery({ rW, rL }) {
++  // Define the house dimensions relative to room size
++  const houseW = Math.max(28, rW * 2.3);
++  const houseL = Math.max(32, rL * 2.3);
++  const houseH = 6.0; // Wall height
++  const ridgeH = 9.5; // Roof peak height
++
++  // Offset the house center so the custom room is situated in the back-left corner of the house
++  const ox = (houseW - rW) / 2;
++  const oz = (houseL - rL) / 2;
++
++  // Rafter math
++  const L = Math.sqrt((houseW / 2) ** 2 + (ridgeH - houseH) ** 2);
++  const angle = Math.atan2(ridgeH - houseH, houseW / 2);
++
++  // Hologram wireframe color
++  const holoColor = "#6c5ce7";
++  const neonCyan = "#00cec9";
++
++  return (
++    <group position={[0, -0.01, 0]}>
++      {/* Outer Infinite dark space floor */}
++      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, -0.02, 0]}>
++        <planeGeometry args={[120, 120]} />
++        <meshStandardMaterial color="#05050c" roughness={0.6} metalness={0.8} />
++      </mesh>
++
++      {/* Holographic House Group */}
++      <group position={[ox, 0, oz]}>
++        {/* Hologram Floor Grid */}
++        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]} receiveShadow>
++          <planeGeometry args={[houseW, houseL]} />
++          <meshStandardMaterial color="#090915" roughness={0.8} transparent opacity={0.6} />
++        </mesh>
++
++        {/* Outer Wall Plates (Bottom of House Walls) */}
++        <mesh position={[0, 0.02, -houseL / 2]}><boxGeometry args={[houseW, 0.04, 0.04]} /><meshStandardMaterial color={holoColor} emissive={holoColor} emissiveIntensity={1.2} /></mesh>
++        <mesh position={[0, 0.02, houseL / 2]}><boxGeometry args={[houseW, 0.04, 0.04]} /><meshStandardMaterial color={holoColor} emissive={holoColor} emissiveIntensity={1.2} /></mesh>
++        <mesh position={[-houseW / 2, 0.02, 0]}><boxGeometry args={[0.04, 0.04, houseL]} /><meshStandardMaterial color={holoColor} emissive={holoColor} emissiveIntensity={1.2} /></mesh>
++        <mesh position={[houseW / 2, 0.02, 0]}><boxGeometry args={[0.04, 0.04, houseL]} /><meshStandardMaterial color={holoColor} emissive={holoColor} emissiveIntensity={1.2} /></mesh>
++
++        {/* Top Wall Plates */}
++        <mesh position={[0, houseH, -houseL / 2]}><boxGeometry args={[houseW, 0.04, 0.04]} /><meshStandardMaterial color={holoColor} emissive={holoColor} emissiveIntensity={1.2} /></mesh>
++        <mesh position={[0, houseH, houseL / 2]}><boxGeometry args={[houseW, 0.04, 0.04]} /><meshStandardMaterial color={holoColor} emissive={holoColor} emissiveIntensity={1.2} /></mesh>
++        <mesh position={[-houseW / 2, houseH, 0]}><boxGeometry args={[0.04, 0.04, houseL]} /><meshStandardMaterial color={holoColor} emissive={holoColor} emissiveIntensity={1.2} /></mesh>
++        <mesh position={[houseW / 2, houseH, 0]}><boxGeometry args={[0.04, 0.04, houseL]} /><meshStandardMaterial color={holoColor} emissive={holoColor} emissiveIntensity={1.2} /></mesh>
++
++        {/* Corner Vertical Studs */}
++        <mesh position={[-houseW / 2, houseH / 2, -houseL / 2]}><boxGeometry args={[0.04, houseH, 0.04]} /><meshStandardMaterial color={holoColor} emissive={holoColor} emissiveIntensity={1.2} /></mesh>
++        <mesh position={[houseW / 2, houseH / 2, -houseL / 2]}><boxGeometry args={[0.04, houseH, 0.04]} /><meshStandardMaterial color={holoColor} emissive={holoColor} emissiveIntensity={1.2} /></mesh>
++        <mesh position={[-houseW / 2, houseH / 2, houseL / 2]}><boxGeometry args={[0.04, houseH, 0.04]} /><meshStandardMaterial color={holoColor} emissive={holoColor} emissiveIntensity={1.2} /></mesh>
++        <mesh position={[houseW / 2, houseH / 2, houseL / 2]}><boxGeometry args={[0.04, houseH, 0.04]} /><meshStandardMaterial color={holoColor} emissive={holoColor} emissiveIntensity={1.2} /></mesh>
++
++        {/* Roof Beams (Ridge Peak) */}
++        <mesh position={[0, ridgeH, 0]}><boxGeometry args={[0.04, 0.04, houseL]} /><meshStandardMaterial color={holoColor} emissive={holoColor} emissiveIntensity={1.2} /></mesh>
++
++        {/* Roof Trusses (Back, Middle, Front) */}
++        {[-houseL / 2, 0, houseL / 2].map((zPos, idx) => (
++          <group key={idx} position={[0, 0, zPos]}>
++            {/* Left Rafter */}
++            <mesh position={[-houseW / 4, houseH + (ridgeH - houseH) / 2, 0]} rotation={[0, 0, angle]}>
++              <boxGeometry args={[0.04, L, 0.04]} />
++              <meshStandardMaterial color={holoColor} emissive={holoColor} emissiveIntensity={1.2} />
++            </mesh>
++            {/* Right Rafter */}
++            <mesh position={[houseW / 4, houseH + (ridgeH - houseH) / 2, 0]} rotation={[0, 0, -angle]}>
++              <boxGeometry args={[0.04, L, 0.04]} />
++              <meshStandardMaterial color={holoColor} emissive={holoColor} emissiveIntensity={1.2} />
++            </mesh>
++            {/* Collar Tie */}
++            <mesh position={[0, houseH, 0]}><boxGeometry args={[houseW, 0.04, 0.04]} /><meshStandardMaterial color={holoColor} emissive={holoColor} emissiveIntensity={1.2} /></mesh>
++          </group>
++        ))}
++
++        {/* Translucent Glass Walls of the Illusion House */}
++        {/* Front Wall Panel */}
++        <mesh position={[0, houseH / 2, houseL / 2]}>
++          <planeGeometry args={[houseW, houseH]} />
++          <meshStandardMaterial color={neonCyan} opacity={0.06} transparent side={THREE.DoubleSide} depthWrite={false} />
++        </mesh>
++        {/* Right Wall Panel */}
++        <mesh position={[houseW / 2, houseH / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
++          <planeGeometry args={[houseL, houseH]} />
++          <meshStandardMaterial color={neonCyan} opacity={0.06} transparent side={THREE.DoubleSide} depthWrite={false} />
++        </mesh>
++        {/* Left Wall Panel (excluding user's room boundary) */}
++        <mesh position={[-houseW / 2, houseH / 2, houseL / 4]} rotation={[0, Math.PI / 2, 0]}>
++          <planeGeometry args={[houseL / 2, houseH]} />
++          <meshStandardMaterial color={neonCyan} opacity={0.06} transparent side={THREE.DoubleSide} depthWrite={false} />
++        </mesh>
++
++        {/* Translucent Glass Roof Panels */}
++        <mesh position={[-houseW / 4, houseH + (ridgeH - houseH) / 2, 0]} rotation={[-Math.PI / 2, -angle, 0]}>
++          <planeGeometry args={[L, houseL]} />
++          <meshStandardMaterial color="#6c5ce7" opacity={0.06} transparent side={THREE.DoubleSide} depthWrite={false} />
++        </mesh>
++        <mesh position={[houseW / 4, houseH + (ridgeH - houseH) / 2, 0]} rotation={[-Math.PI / 2, angle, 0]}>
++          <planeGeometry args={[L, houseL]} />
++          <meshStandardMaterial color="#6c5ce7" opacity={0.06} transparent side={THREE.DoubleSide} depthWrite={false} />
++        </mesh>
++
++        {/* Internal Partition Wall Outlines (Floor Grid plan) */}
++        {/* Partition: Living Room vs Kitchen */}
++        <mesh position={[houseW * 0.15, 0.02, houseL * 0.1]}><boxGeometry args={[0.02, 0.04, houseL * 0.5]} /><meshStandardMaterial color="#2a2a3e" /></mesh>
++        {/* Partition: Bedroom vs Living Room */}
++        <mesh position={[houseW * 0.25, 0.02, -houseL * 0.05]}><boxGeometry args={[houseW * 0.5, 0.04, 0.02]} /><meshStandardMaterial color="#2a2a3e" /></mesh>
++
++        {/* Holographic Blueprint Furniture (Subordinate layout outline) */}
++        {/* Living Room: Wireframe Sofa */}
++        <group position={[houseW * 0.1, 0.1, houseL * 0.15]} rotation={[0, Math.PI, 0]}>
++          <mesh><boxGeometry args={[2.0, 0.4, 0.8]} /><meshBasicMaterial color="#a29bfe" wireframe /></mesh>
++          <mesh position={[0, 0.4, -0.35]}><boxGeometry args={[2.0, 0.5, 0.1]} /><meshBasicMaterial color="#a29bfe" wireframe /></mesh>
++        </group>
++        {/* Living Room: Wireframe TV stand */}
++        <mesh position={[houseW * 0.2, 0.2, houseL * 0.05]}>
++          <boxGeometry args={[1.5, 0.4, 0.4]} />
++          <meshBasicMaterial color="#00cec9" wireframe />
++        </mesh>
++
++        {/* Bedroom: Wireframe Bed */}
++        <group position={[houseW * 0.25, 0.1, -houseL * 0.2]}>
++          <mesh><boxGeometry args={[1.6, 0.3, 1.9]} /><meshBasicMaterial color="#ff7675" wireframe /></mesh>
++          <mesh position={[0, 0.4, -0.9]}><boxGeometry args={[1.6, 0.6, 0.1]} /><meshBasicMaterial color="#ff7675" wireframe /></mesh>
++        </group>
++
++        {/* Kitchen: Dining Table & Chairs */}
++        <group position={[houseW * 0.2, 0.1, houseL * 0.35]}>
++          <mesh position={[0, 0.35, 0]}><boxGeometry args={[1.2, 0.04, 1.2]} /><meshBasicMaterial color="#ffeaa7" wireframe /></mesh>
++          <mesh position={[-0.5, 0.18, -0.5]}><boxGeometry args={[0.04, 0.35, 0.04]} /><meshBasicMaterial color="#ffeaa7" wireframe /></mesh>
++          <mesh position={[0.5, 0.18, -0.5]}><boxGeometry args={[0.04, 0.35, 0.04]} /><meshBasicMaterial color="#ffeaa7" wireframe /></mesh>
++          <mesh position={[-0.5, 0.18, 0.5]}><boxGeometry args={[0.04, 0.35, 0.04]} /><meshBasicMaterial color="#ffeaa7" wireframe /></mesh>
++          <mesh position={[0.5, 0.18, 0.5]}><boxGeometry args={[0.04, 0.35, 0.04]} /><meshBasicMaterial color="#ffeaa7" wireframe /></mesh>
++        </group>
++      </group>
++    </group>
++  );
++}
++
+ // ΓöÇΓöÇ Room ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-function Room({ rL, rW, rH }) {
++function Room({ rL, rW, rH, theme, wallColor, floorPattern, wallPattern, doorPos, setDoorPos, setOrbitEnabled }) {
++  const { camera, gl } = useThree();
++
++  const doorRef = useRef();
++  const [doorOpen, setDoorOpen] = useState(true);
++  const isDragDoor = useRef(false);
++  const hasDragged = useRef(false);
++  const [activeDrag, setActiveDrag] = useState(false);
++
++  useEffect(() => {
++    if (!activeDrag) return;
++
++    const handlePointerMove = (e) => {
++      hasDragged.current = true;
++      const hit = getWallHit(e.clientX, e.clientY);
++      if (hit) {
++        setDoorPos({ wall: hit.wall, offset: hit.offset });
++      }
++    };
++
++    const handlePointerUp = (e) => {
++      setActiveDrag(false);
++      setOrbitEnabled(true);
++      if (!hasDragged.current) {
++        const nextState = !doorOpen;
++        setDoorOpen(nextState);
++        playDoorSound(!nextState);
++      }
++    };
++
++    window.addEventListener('pointermove', handlePointerMove);
++    window.addEventListener('pointerup', handlePointerUp);
++
++    return () => {
++      window.removeEventListener('pointermove', handlePointerMove);
++      window.removeEventListener('pointerup', handlePointerUp);
++    };
++  }, [activeDrag, doorOpen, setDoorPos, setOrbitEnabled]);
++
++  useFrame(() => {
++    if (doorRef.current) {
++      const targetRot = doorOpen ? Math.PI / 2.2 : 0;
++      doorRef.current.rotation.y = THREE.MathUtils.lerp(
++        doorRef.current.rotation.y,
++        targetRot,
++        0.15
++      );
++    }
++  });
++
++  const floorTexture = useMemo(() => {
++    const tex = createFloorTexture(theme, floorPattern);
++    if (gl) {
++      tex.anisotropy = gl.capabilities.getMaxAnisotropy();
++    }
++    return tex;
++  }, [theme, floorPattern, gl]);
++
++  const repeatX = floorPattern === "Modern Marble" || floorPattern === "Concrete Grids" ? rW / 4.0 : rW / 5.0;
++  const repeatY = floorPattern === "Modern Marble" || floorPattern === "Concrete Grids" ? rL / 4.0 : rL / 5.0;
++  useEffect(() => {
++    if (floorTexture) {
++      floorTexture.repeat.set(repeatX, repeatY);
++      floorTexture.needsUpdate = true;
++    }
++  }, [floorTexture, repeatX, repeatY]);
++
++  const backWallColor = wallColor ? wallColor : (theme === "Dark" ? "#1a1a2e" : theme === "Classic" ? "#FFF8F0" : theme === "Minimal" ? "#FFFFFF" : "#e8e0d0");
++  const leftWallColor = wallColor ? wallColor : (theme === "Dark" ? "#121222" : theme === "Classic" ? "#F5ECE0" : theme === "Minimal" ? "#EBEBEB" : "#ddd5c5");
++
++  const backWallTexture = useMemo(() => {
++    const tex = createWallTexture(backWallColor, wallPattern);
++    if (gl) {
++      tex.anisotropy = gl.capabilities.getMaxAnisotropy();
++    }
++    return tex;
++  }, [backWallColor, wallPattern, gl]);
++
++  const leftWallTexture = useMemo(() => {
++    const tex = createWallTexture(leftWallColor, wallPattern);
++    if (gl) {
++      tex.anisotropy = gl.capabilities.getMaxAnisotropy();
++    }
++    return tex;
++  }, [leftWallColor, wallPattern, gl]);
++
++  const trimColor = theme === "Dark" ? "#1a1a2e" : theme === "Classic" ? "#8b5a2b" : "#ffffff";
++
++  // Dynamic Snapped Wall Door position variables
++  const doorW = 0.9;
++  const wallWithDoor = doorPos.wall || 'left';
++  const offset = doorPos.offset || 0.25;
++
++  let doorPosition3D = [0, 0, 0];
++  let doorRotation3D = [0, 0, 0];
++
++  if (wallWithDoor === 'left') {
++    const dz = Math.max(-rL / 2 + doorW / 2, Math.min(rL / 2 - doorW / 2, -rL / 2 + offset * rL));
++    doorPosition3D = [-rW / 2 + 0.015, 0, dz];
++    doorRotation3D = [0, 0, 0];
++  } else if (wallWithDoor === 'right') {
++    const dz = Math.max(-rL / 2 + doorW / 2, Math.min(rL / 2 - doorW / 2, -rL / 2 + offset * rL));
++    doorPosition3D = [rW / 2 - 0.015, 0, dz];
++    doorRotation3D = [0, 0, 0];
++  } else if (wallWithDoor === 'back' || wallWithDoor === 'top') {
++    const dx = Math.max(-rW / 2 + doorW / 2, Math.min(rW / 2 - doorW / 2, -rW / 2 + offset * rW));
++    doorPosition3D = [dx, 0, -rL / 2 + 0.015];
++    doorRotation3D = [0, Math.PI / 2, 0];
++  } else { // front or bottom
++    const dx = Math.max(-rW / 2 + doorW / 2, Math.min(rW / 2 - doorW / 2, -rW / 2 + offset * rW));
++    doorPosition3D = [dx, 0, rL / 2 - 0.015];
++    doorRotation3D = [0, Math.PI / 2, 0];
++  }
++
++  // 3D Pointer Raycasting to all 4 walls for Door Dragging
++  const getWallHit = useCallback((cx, cy) => {
++    const rect = gl.domElement.getBoundingClientRect();
++    const nx = ((cx - rect.left) / rect.width) * 2 - 1;
++    const ny = ((cy - rect.top) / rect.height) * -2 + 1;
++    const near = new THREE.Vector3(nx, ny, -1).unproject(camera);
++    const far = new THREE.Vector3(nx, ny, 1).unproject(camera);
++    const dir = far.clone().sub(near).normalize();
++
++    const hits = [];
++
++    // Left wall: x = -rW/2
++    if (Math.abs(dir.x) > 0.0001) {
++      const t = (-rW/2 - near.x) / dir.x;
++      if (t >= 0) {
++        const p = near.clone().addScaledVector(dir, t);
++        if (p.y >= -5 && p.y <= rH + 5 && p.z >= -rL/2 - 2 && p.z <= rL/2 + 2) {
++          const rawOffset = (p.z - (-rL/2)) / rL;
++          hits.push({ wall: 'left', offset: Math.max(0.05, Math.min(0.95, rawOffset)), dist: t });
++        }
++      }
++    }
++
++    // Right wall: x = rW/2
++    if (Math.abs(dir.x) > 0.0001) {
++      const t = (rW/2 - near.x) / dir.x;
++      if (t >= 0) {
++        const p = near.clone().addScaledVector(dir, t);
++        if (p.y >= -5 && p.y <= rH + 5 && p.z >= -rL/2 - 2 && p.z <= rL/2 + 2) {
++          const rawOffset = (p.z - (-rL/2)) / rL;
++          hits.push({ wall: 'right', offset: Math.max(0.05, Math.min(0.95, rawOffset)), dist: t });
++        }
++      }
++    }
++
++    // Back wall: z = -rL/2
++    if (Math.abs(dir.z) > 0.0001) {
++      const t = (-rL/2 - near.z) / dir.z;
++      if (t >= 0) {
++        const p = near.clone().addScaledVector(dir, t);
++        if (p.y >= -5 && p.y <= rH + 5 && p.x >= -rW/2 - 2 && p.x <= rW/2 + 2) {
++          const rawOffset = (p.x - (-rW/2)) / rW;
++          hits.push({ wall: 'back', offset: Math.max(0.05, Math.min(0.95, rawOffset)), dist: t });
++        }
++      }
++    }
++
++    // Front wall: z = rL/2
++    if (Math.abs(dir.z) > 0.0001) {
++      const t = (rL/2 - near.z) / dir.z;
++      if (t >= 0) {
++        const p = near.clone().addScaledVector(dir, t);
++        if (p.y >= -5 && p.y <= rH + 5 && p.x >= -rW/2 - 2 && p.x <= rW/2 + 2) {
++          const rawOffset = (p.x - (-rW/2)) / rW;
++          hits.push({ wall: 'front', offset: Math.max(0.05, Math.min(0.95, rawOffset)), dist: t });
++        }
++      }
++    }
++
++    if (hits.length === 0) return null;
++    hits.sort((a, b) => a.dist - b.dist);
++    return hits[0];
++  }, [camera, gl, rW, rL, rH]);
++
++  // Wall definitions
++  const walls = [
++    { id: 'back', pos: [0, rH / 2, -rL / 2 + 0.01], rot: [0, 0, 0], len: rW, isH: true },
++    { id: 'left', pos: [-rW / 2 + 0.01, rH / 2, 0], rot: [0, Math.PI / 2, 0], len: rL, isH: false },
++    { id: 'right', pos: [rW / 2 - 0.01, rH / 2, 0], rot: [0, -Math.PI / 2, 0], len: rL, isH: false },
++    { id: 'front', pos: [0, rH / 2, rL / 2 - 0.01], rot: [0, Math.PI, 0], len: rW, isH: true }
++  ];
++
++  // Switchboard dynamically positioned near the door
++  let switchboardPos = [0, 0, 0];
++  let switchboardRot = [0, 0, 0];
++  if (wallWithDoor === 'left') {
++    switchboardPos = [-rW / 2 + 0.06, 1.25, doorPosition3D[2] + 0.6];
++    switchboardRot = [0, Math.PI / 2, 0];
++  } else if (wallWithDoor === 'right') {
++    switchboardPos = [rW / 2 - 0.06, 1.25, doorPosition3D[2] - 0.6];
++    switchboardRot = [0, -Math.PI / 2, 0];
++  } else if (wallWithDoor === 'back' || wallWithDoor === 'top') {
++    switchboardPos = [doorPosition3D[0] + 0.6, 1.25, -rL / 2 + 0.06];
++    switchboardRot = [0, 0, 0];
++  } else {
++    switchboardPos = [doorPosition3D[0] - 0.6, 1.25, rL / 2 - 0.06];
++    switchboardRot = [0, Math.PI, 0];
++  }
++
+   return (
+     <>
+-      <mesh rotation={[-Math.PI/2,0,0]} receiveShadow>
+-        <planeGeometry args={[rW,rL]} />
+-        <meshStandardMaterial color="#c8b89a" />
++      {/* ΓöÇΓöÇ Room Floor plane ΓöÇΓöÇ */}
++      <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, 0.005, 0]}>
++        <planeGeometry args={[rW, rL]} />
++        <meshStandardMaterial
++          map={floorTexture}
++          roughness={floorPattern === "Modern Marble" ? 0.15 : 0.6}
++          metalness={floorPattern === "Modern Marble" ? 0.2 : 0.05}
++        />
+       </mesh>
+-      <mesh position={[0,rH/2,-rL/2]} receiveShadow>
+-        <boxGeometry args={[rW+0.2,rH,0.1]} />
+-        <meshStandardMaterial color="#e8e0d0" />
++
++      {/* ΓöÇΓöÇ Ceiling ΓöÇΓöÇ */}
++      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, rH, 0]}>
++        <planeGeometry args={[rW, rL]} />
++        <meshStandardMaterial color={theme === "Dark" ? "#111122" : "#f5f5f5"} roughness={0.9} />
+       </mesh>
+-      <mesh position={[-rW/2,rH/2,0]} receiveShadow>
+-        <boxGeometry args={[0.1,rH,rL]} />
+-        <meshStandardMaterial color="#ddd5c5" />
++
++      {/* ΓöÇΓöÇ Walls (Dynamic Split for Snapped Door) ΓöÇΓöÇ */}
++      {walls.map(wall => {
++        const hasDoor = wall.id === wallWithDoor;
++        const textureMap = wall.id === 'left' || wall.id === 'front' ? leftWallTexture : backWallTexture;
++
++        if (!hasDoor) {
++          return (
++            <mesh key={wall.id} position={wall.pos} rotation={wall.rot} receiveShadow>
++              <planeGeometry args={[wall.len, rH]} />
++              <meshStandardMaterial map={textureMap} roughness={0.85} />
++            </mesh>
++          );
++        } else {
++          const totalLength = wall.len;
++          const dC = wall.isH ? doorPosition3D[0] : doorPosition3D[2];
++          const L1 = dC - (-totalLength / 2) - doorW / 2;
++          const L2 = totalLength / 2 - (dC + doorW / 2);
++          const pos1 = -totalLength / 2 + L1 / 2;
++          const pos2 = totalLength / 2 - L2 / 2;
++
++          return (
++            <group key={wall.id}>
++              {/* Segment 1 */}
++              {L1 > 0.001 && (
++                <mesh
++                  position={wall.isH ? [pos1, rH / 2, wall.pos[2]] : [wall.pos[0], rH / 2, pos1]}
++                  rotation={wall.rot}
++                  receiveShadow
++                >
++                  <planeGeometry args={[L1, rH]} />
++                  <meshStandardMaterial map={textureMap} roughness={0.85} />
++                </mesh>
++              )}
++              {/* Segment 2 */}
++              {L2 > 0.001 && (
++                <mesh
++                  position={wall.isH ? [pos2, rH / 2, wall.pos[2]] : [wall.pos[0], rH / 2, pos2]}
++                  rotation={wall.rot}
++                  receiveShadow
++                >
++                  <planeGeometry args={[L2, rH]} />
++                  <meshStandardMaterial map={textureMap} roughness={0.85} />
++                </mesh>
++              )}
++              {/* Segment 3 (above door) */}
++              <mesh
++                position={wall.isH ? [dC, 2.0 + (rH - 2.0) / 2, wall.pos[2]] : [wall.pos[0], 2.0 + (rH - 2.0) / 2, dC]}
++                rotation={wall.rot}
++                receiveShadow
++              >
++                <planeGeometry args={[doorW, rH - 2.0]} />
++                <meshStandardMaterial map={textureMap} roughness={0.85} />
++              </mesh>
++            </group>
++          );
++        }
++      })}
++
++      {/* Sub-floor base border */}
++      <mesh position={[0, -0.05, 0]}>
++        <boxGeometry args={[rW + 0.2, 0.1, rL + 0.2]} />
++        <meshStandardMaterial color="#0e0a24" roughness={0.8} />
+       </mesh>
+-      <mesh position={[0,-0.05,0]}>
+-        <boxGeometry args={[rW+0.2,0.1,rL+0.2]} />
+-        <meshStandardMaterial color="#a09080" />
++
++      {/* ΓöÇΓöÇ Baseboard Trim Detailing (Dynamic Snapping) ΓöÇΓöÇ */}
++      {walls.map(wall => {
++        const hasDoor = wall.id === wallWithDoor;
++        if (!hasDoor) {
++          return (
++            <mesh key={`baseboard-${wall.id}`} position={wall.isH ? [0, 0.06, wall.pos[2] + (wall.id === 'back' ? 0.01 : -0.01)] : [wall.pos[0] + (wall.id === 'left' ? 0.01 : -0.01), 0.06, 0]} receiveShadow>
++              <boxGeometry args={wall.isH ? [wall.len, 0.12, 0.02] : [0.02, 0.12, wall.len]} />
++              <meshStandardMaterial color={trimColor} roughness={0.7} />
++            </mesh>
++          );
++        } else {
++          const totalLength = wall.len;
++          const dC = wall.isH ? doorPosition3D[0] : doorPosition3D[2];
++          const L1 = dC - (-totalLength / 2) - doorW / 2;
++          const L2 = totalLength / 2 - (dC + doorW / 2);
++          const pos1 = -totalLength / 2 + L1 / 2;
++          const pos2 = totalLength / 2 - L2 / 2;
++
++          return (
++            <group key={`baseboard-${wall.id}`}>
++              {L1 > 0.001 && (
++                <mesh
++                  position={wall.isH ? [pos1, 0.06, wall.pos[2] + (wall.id === 'back' ? 0.01 : -0.01)] : [wall.pos[0] + (wall.id === 'left' ? 0.01 : -0.01), 0.06, pos1]}
++                  receiveShadow
++                >
++                  <boxGeometry args={wall.isH ? [L1, 0.12, 0.02] : [0.02, 0.12, L1]} />
++                  <meshStandardMaterial color={trimColor} roughness={0.7} />
++                </mesh>
++              )}
++              {L2 > 0.001 && (
++                <mesh
++                  position={wall.isH ? [pos2, 0.06, wall.pos[2] + (wall.id === 'back' ? 0.01 : -0.01)] : [wall.pos[0] + (wall.id === 'left' ? 0.01 : -0.01), 0.06, pos2]}
++                  receiveShadow
++                >
++                  <boxGeometry args={wall.isH ? [L2, 0.12, 0.02] : [0.02, 0.12, L2]} />
++                  <meshStandardMaterial color={trimColor} roughness={0.7} />
++                </mesh>
++              )}
++            </group>
++          );
++        }
++      })}
++
++      {/* ΓöÇΓöÇ Architectural Crown Molding ΓöÇΓöÇ */}
++      <mesh position={[0, rH - 0.06, -rL / 2 + 0.02]} castShadow>
++        <boxGeometry args={[rW, 0.12, 0.03]} />
++        <meshStandardMaterial color={trimColor} roughness={0.8} />
++      </mesh>
++      <mesh position={[-rW / 2 + 0.02, rH - 0.06, 0]} castShadow>
++        <boxGeometry args={[0.03, 0.12, rL]} />
++        <meshStandardMaterial color={trimColor} roughness={0.8} />
++      </mesh>
++      <mesh position={[rW / 2 - 0.02, rH - 0.06, 0]} castShadow>
++        <boxGeometry args={[0.03, 0.12, rL]} />
++        <meshStandardMaterial color={trimColor} roughness={0.8} />
+       </mesh>
++      <mesh position={[0, rH - 0.06, rL / 2 - 0.02]} castShadow>
++        <boxGeometry args={[rW, 0.12, 0.03]} />
++        <meshStandardMaterial color={trimColor} roughness={0.8} />
++      </mesh>
++
++      {/* ΓöÇΓöÇ Interior Details ΓöÇΓöÇ */}
++      {/* Wall Painting (Left Wall segment) */}
++      {!(wallWithDoor === 'left' && offset < 0.45) && (
++        <group position={[-rW / 2 + 0.06, rH * 0.55, -rL * 0.18]}>
++          <mesh rotation={[0, Math.PI / 2, 0]} castShadow>
++            <boxGeometry args={[1.5, 1.2, 0.04]} />
++            <meshStandardMaterial color="#4d3227" roughness={0.9} />
++          </mesh>
++          <mesh position={[0.021, 0, 0]} rotation={[0, Math.PI / 2, 0]}>
++            <planeGeometry args={[1.4, 1.1]} />
++            <meshStandardMaterial color="#d4a96a" emissive="#1a1005" emissiveIntensity={0.25} />
++          </mesh>
++        </group>
++      )}
++
++      {/* Wall Clock (Back Wall segment) */}
++      {!(wallWithDoor === 'back' && offset < 0.45) && (
++        <group position={[-rW * 0.28, rH * 0.65, -rL / 2 + 0.06]}>
++          <mesh castShadow>
++            <cylinderGeometry args={[0.38, 0.38, 0.04, 32]} rotation={[Math.PI / 2, 0, 0]} />
++            <meshStandardMaterial color="#4d3227" roughness={0.7} />
++          </mesh>
++          <mesh position={[0, 0, 0.021]}>
++            <cylinderGeometry args={[0.34, 0.34, 0.01, 32]} rotation={[Math.PI / 2, 0, 0]} />
++            <meshStandardMaterial color="#ffffff" roughness={0.9} />
++          </mesh>
++          <mesh position={[0, 0.08, 0.027]}>
++            <boxGeometry args={[0.02, 0.18, 0.005]} />
++            <meshBasicMaterial color="#000" />
++          </mesh>
++          <mesh position={[0.07, 0, 0.027]} rotation={[0, 0, -Math.PI / 3]}>
++            <boxGeometry args={[0.018, 0.24, 0.005]} />
++            <meshBasicMaterial color="#000" />
++          </mesh>
++        </group>
++      )}
++
++      {/* Switchboard dynamically positioned */}
++      <mesh position={switchboardPos} rotation={switchboardRot} castShadow>
++        <boxGeometry args={[0.02, 0.15, 0.2]} />
++        <meshStandardMaterial color="#f0f0f0" roughness={0.9} />
++      </mesh>
++
++      {/* Ceiling Spotlight Fixtures */}
++      {[
++        [-rW * 0.25, -rL * 0.25],
++        [rW * 0.25, -rL * 0.25],
++        [-rW * 0.25, rL * 0.25],
++        [rW * 0.25, rL * 0.25]
++      ].map(([x, z], i) => (
++        <group key={i}>
++          <mesh position={[x, rH - 0.02, z]}>
++            <cylinderGeometry args={[0.14, 0.14, 0.04, 16]} />
++            <meshStandardMaterial color="#ffffff" metalness={0.7} roughness={0.2} />
++          </mesh>
++          <pointLight position={[x, rH - 0.1, z]} intensity={0.3} distance={5} color="#ffeaa7" />
++        </group>
++      ))}
++
++      {/* ΓöÇΓöÇ Door Assembly (Draggable in 3D) ΓöÇΓöÇ */}
++      <group
++        position={doorPosition3D}
++        rotation={doorRotation3D}
++        onPointerDown={(e) => {
++          e.stopPropagation();
++          hasDragged.current = false;
++          setOrbitEnabled(false);
++          setActiveDrag(true);
++        }}
++      >
++        <mesh position={[0, 1.0, -0.45]} castShadow>
++          <boxGeometry args={[0.03, 2.0, 0.03]} />
++          <meshStandardMaterial color={trimColor} roughness={0.8} />
++        </mesh>
++        <mesh position={[0, 1.0, 0.45]} castShadow>
++          <boxGeometry args={[0.03, 2.0, 0.03]} />
++          <meshStandardMaterial color={trimColor} roughness={0.8} />
++        </mesh>
++        <mesh position={[0, 2.0, 0]} castShadow>
++          <boxGeometry args={[0.03, 0.03, 0.93]} />
++          <meshStandardMaterial color={trimColor} roughness={0.8} />
++        </mesh>
++        <group
++          ref={doorRef}
++          position={[0, 0, -0.45]}
++        >
++          <mesh position={[0, 1.0, 0.435]} castShadow receiveShadow>
++            <boxGeometry args={[0.03, 1.96, 0.87]} />
++            <meshStandardMaterial color={theme === "Dark" ? "#2a2a3e" : "#8b5a2b"} roughness={0.9} />
++          </mesh>
++          <mesh position={[0.045, 1.0, 0.78]} castShadow>
++            <sphereGeometry args={[0.025, 16, 16]} />
++            <meshStandardMaterial color="#d4a96a" metalness={0.85} roughness={0.15} />
++          </mesh>
++        </group>
++      </group>
+     </>
+   );
+ }
+ 
++
++
++// ΓöÇΓöÇ Vastu 3D Grid Overlay ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++function VastuOverlay({ rW, rL, selectedId, sharedItems }) {
++  const selItem = sharedItems.find(i => i.id === selectedId);
++
++  // Define 9 grid coordinates & labels
++  const cells = [
++    { id: "NW", x: -rW / 3, z: -rL / 3, label: "NW ┬╖ Vayu", sub: "Air ≡ƒìâ" },
++    { id: "N", x: 0, z: -rL / 3, label: "N ┬╖ Kubera", sub: "Wealth ≡ƒÆ░" },
++    { id: "NE", x: rW / 3, z: -rL / 3, label: "NE ┬╖ Ishanya", sub: "Water ≡ƒÆº" },
++    { id: "W", x: -rW / 3, z: 0, label: "W ┬╖ Varuna", sub: "Stability ≡ƒîè" },
++    { id: "C", x: 0, z: 0, label: "Brahmasthan", sub: "Space ≡ƒîî" },
++    { id: "E", x: rW / 3, z: 0, label: "E ┬╖ Aditya", sub: "Solar ΓÿÇ∩╕Å" },
++    { id: "SW", x: -rW / 3, z: rL / 3, label: "SW ┬╖ Nairutya", sub: "Earth ≡ƒ¬¿" },
++    { id: "S", x: 0, z: rL / 3, label: "S ┬╖ Yama", sub: "Rest ≡ƒ¢í∩╕Å" },
++    { id: "SE", x: rW / 3, z: rL / 3, label: "SE ┬╖ Agni", sub: "Fire ≡ƒöÑ" }
++  ];
++
++  // Calculate compatibility for the dragged item
++  let activeCell = null;
++  let compatibility = null;
++  if (selItem) {
++    const rot = selItem.rot || 0;
++    const isRotated = Math.round(rot / (Math.PI / 2)) % 2 !== 0;
++    const hitW = isRotated ? selItem.h : selItem.w;
++    const hitH = isRotated ? selItem.w : selItem.h;
++    const cx = selItem.x + hitW / 2;
++    const cy = selItem.y + hitH / 2;
++    const x3d = (cx / SCALE) - rW / 2;
++    const z3d = (cy / SCALE) - rL / 2;
++    activeCell = getZoneFromCoords(x3d, z3d, rW, rL);
++    compatibility = getVastuCompatibility(selItem.name, activeCell);
++  }
++
++
++  return (
++    <group position={[0, 0.082, 0]}>
++      {/* 3x3 Grid divider lines */}
++      <mesh position={[-rW / 6, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
++        <planeGeometry args={[0.015, rL]} />
++        <meshBasicMaterial color="#d4a96a" opacity={0.25} transparent />
++      </mesh>
++      <mesh position={[rW / 6, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
++        <planeGeometry args={[0.015, rL]} />
++        <meshBasicMaterial color="#d4a96a" opacity={0.25} transparent />
++      </mesh>
++      <mesh position={[0, 0, -rL / 6]} rotation={[-Math.PI / 2, 0, 0]}>
++        <planeGeometry args={[rW, 0.015]} />
++        <meshBasicMaterial color="#d4a96a" opacity={0.25} transparent />
++      </mesh>
++      <mesh position={[0, 0, rL / 6]} rotation={[-Math.PI / 2, 0, 0]}>
++        <planeGeometry args={[rW, 0.015]} />
++        <meshBasicMaterial color="#d4a96a" opacity={0.25} transparent />
++      </mesh>
++
++      {/* Center compass circle ring */}
++      <mesh position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]}>
++        <ringGeometry args={[0.4, 0.42, 64]} />
++        <meshBasicMaterial color="#d4a96a" opacity={0.4} transparent />
++      </mesh>
++      <mesh position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]}>
++        <ringGeometry args={[0, 0.04, 4]} />
++        <meshBasicMaterial color="#d4a96a" opacity={0.4} transparent />
++      </mesh>
++
++      {/* Grid Cells and Floating Tags */}
++      {cells.map(cell => {
++        const isActive = activeCell === cell.id;
++        let cellColor = "rgba(108, 92, 231, 0.02)";
++        let opacity = 0.02;
++
++        if (isActive && compatibility) {
++          cellColor = compatibility.color;
++          opacity = 0.18;
++        } else if (cell.id === "C") {
++          cellColor = "#fd79a8";
++          opacity = 0.06;
++        }
++
++        return (
++          <group key={cell.id}>
++            {/* Cell Highlight Plane */}
++            <mesh position={[cell.x, 0, cell.z]} rotation={[-Math.PI / 2, 0, 0]}>
++              <planeGeometry args={[rW / 3 - 0.03, rL / 3 - 0.03]} />
++              <meshBasicMaterial color={cellColor} opacity={opacity} transparent depthWrite={false} />
++            </mesh>
++
++            {/* Glowing borders around active Vastu quadrant */}
++            {isActive && compatibility && (
++              <mesh position={[cell.x, 0.001, cell.z]} rotation={[-Math.PI / 2, 0, 0]}>
++                <planeGeometry args={[rW / 3 - 0.015, rL / 3 - 0.015]} />
++                <meshBasicMaterial color={compatibility.color} wireframe={true} />
++              </mesh>
++            )}
++
++            {/* Glassmorphic direction HTML label */}
++            <Html
++              position={[cell.x, 0.04, cell.z]}
++              center
++              distanceFactor={8}
++              style={{
++                pointerEvents: "none",
++                userSelect: "none",
++                whiteSpace: "nowrap"
++              }}
++            >
++              <div style={{
++                background: isActive ? "rgba(7, 7, 20, 0.88)" : "rgba(7, 7, 20, 0.6)",
++                border: isActive ? `1.5px solid ${compatibility.color}` : "1.5px solid rgba(255, 255, 255, 0.1)",
++                borderRadius: "15px",
++                padding: "4px 10px",
++                fontSize: "10px",
+ // ΓöÇΓöÇ Furniture mesh (inside Canvas) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-function FurnitureMesh({ item, selected, onSelect, onDragEnd,
+-                         onRotateDelta, setOrbitEnabled, rW, rL }) {
++function FurnitureMesh({
++  item,
++  selected,
++  onSelect,
++  onDragEnd,
++  onDragMove,
++  onRotateDelta,
++  setOrbitEnabled,
++  rW,
++  rL,
++  vastuEnabled,
++  toggleInteractItem
++}) {
+   const { camera, gl } = useThree();
+-  const ref    = useRef();
++  const ref = useRef();
+   const isDrag = useRef(false);
+-  const Shape  = SHAPES[item.name] || Sofa;
+-  const meta   = META[item.name]   || { w:1, d:1 };
++  const [activeDrag, setActiveDrag] = useState(false);
++  const startPos = useRef({ x: 0, y: 0 });
++  const hasMoved = useRef(false);
+ 
+-  // ΓöÇΓöÇ floor raycast ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++  const Shape = SHAPES[item.name] || Sofa;
++  const meta = META[item.name] || { w: 1.5, d: 1.5 };
++  const isRotated = Math.round((item.rot || 0) / (Math.PI / 2)) % 2 !== 0;
++  const boundW = isRotated ? meta.d : meta.w;
++  const boundD = isRotated ? meta.w : meta.d;
++
++  // 3D Raycasting helper to detect floor hit coordinates
+   const hitFloor = useCallback((cx, cy) => {
+     const rect = gl.domElement.getBoundingClientRect();
+-    const nx   = ((cx - rect.left) / rect.width)  *  2 - 1;
+-    const ny   = ((cy - rect.top)  / rect.height) * -2 + 1;
++    const nx = ((cx - rect.left) / rect.width) * 2 - 1;
++    const ny = ((cy - rect.top) / rect.height) * -2 + 1;
+     const near = new THREE.Vector3(nx, ny, -1).unproject(camera);
+-    const far  = new THREE.Vector3(nx, ny,  1).unproject(camera);
+-    const dir  = far.clone().sub(near).normalize();
++    const far = new THREE.Vector3(nx, ny, 1).unproject(camera);
++    const dir = far.clone().sub(near).normalize();
++
+     if (Math.abs(dir.y) < 0.0001) return null;
+-    const t = -near.y / dir.y;
++    const t = (0.08 - near.y) / dir.y; // Raycast to raised floor y = 0.08
+     if (t < 0) return null;
+     const hit = near.clone().addScaledVector(dir, t);
++
++    if (item.name === "Window") {
++      const dLeft = Math.abs(hit.x - (-rW / 2));
++      const dRight = Math.abs(hit.x - (rW / 2));
++      const dBack = Math.abs(hit.z - (-rL / 2));
++      const dFront = Math.abs(hit.z - (rL / 2));
++      const minDist = Math.min(dLeft, dRight, dBack, dFront);
++
++      let snapX = hit.x;
++      let snapZ = hit.z;
++      let rot = item.rot || 0;
++
++      if (minDist === dLeft) {
++        snapX = -rW / 2;
++        rot = Math.PI / 2;
++        snapZ = Math.max(-rL / 2 + boundD / 2, Math.min(rL / 2 - boundD / 2, hit.z));
++      } else if (minDist === dRight) {
++        snapX = rW / 2;
++        rot = -Math.PI / 2;
++        snapZ = Math.max(-rL / 2 + boundD / 2, Math.min(rL / 2 - boundD / 2, hit.z));
++      } else if (minDist === dBack) {
++        snapZ = -rL / 2;
++        rot = 0;
++        snapX = Math.max(-rW / 2 + boundW / 2, Math.min(rW / 2 - boundW / 2, hit.x));
++      } else {
++        snapZ = rL / 2;
++        rot = Math.PI;
++        snapX = Math.max(-rW / 2 + boundW / 2, Math.min(rW / 2 - boundW / 2, hit.x));
++      }
++      return { x: snapX, z: snapZ, rot };
++    }
++
+     return {
+-      x: Math.max(-rW/2 + meta.w/2, Math.min(rW/2 - meta.w/2, hit.x)),
+-      z: Math.max(-rL/2 + meta.d/2, Math.min(rL/2 - meta.d/2, hit.z)),
++      x: Math.max(-rW / 2 + boundW / 2, Math.min(rW / 2 - boundW / 2, hit.x)),
++      z: Math.max(-rL / 2 + boundD / 2, Math.min(rL / 2 - boundD / 2, hit.z)),
++      rot: item.rot || 0
+     };
+-  }, [camera, gl, rW, rL, meta.w, meta.d]);
++  }, [camera, gl, rW, rL, boundW, boundD, item.name, item.rot]);
+ 
+-  // ΓöÇΓöÇ scroll to rotate selected furniture ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++  // Wheel scroll to rotate active item
+   useEffect(() => {
+     if (!selected) return;
+     const el = gl.domElement;
+     const onWheel = (e) => {
+       e.preventDefault();
+       e.stopPropagation();
+-      const delta = e.deltaY > 0 ? Math.PI / 8 : -Math.PI / 8;
++      const delta = e.deltaY > 0 ? Math.PI / 12 : -Math.PI / 12; // 15-degree steps
+       onRotateDelta(item.id, delta);
+     };
+     el.addEventListener("wheel", onWheel, { passive: false });
+     return () => el.removeEventListener("wheel", onWheel);
+   }, [selected, item.id, gl, onRotateDelta]);
+ 
++  useEffect(() => {
++    if (!activeDrag) return;
++
++    const handlePointerMove = (e) => {
++      if (!ref.current) return;
++
++      const dx = e.clientX - startPos.current.x;
++      const dy = e.clientY - startPos.current.y;
++      if (Math.sqrt(dx * dx + dy * dy) > 6) {
++        hasMoved.current = true;
++      }
++
++      const pos = hitFloor(e.clientX, e.clientY);
++      if (!pos) return;
++
++      ref.current.position.x = pos.x;
++      ref.current.position.y = 0.08;
++      ref.current.position.z = pos.z;
++      ref.current.rotation.y = pos.rot;
++
++      const nx = (pos.x + rW / 2) * SCALE - (boundW * SCALE) / 2;
++      const ny = (pos.z + rL / 2) * SCALE - (boundD * SCALE) / 2;
++      onDragMove && onDragMove(item.id, nx, ny, pos.rot);
++    };
++
++    const handlePointerUp = (e) => {
++      setActiveDrag(false);
++      setOrbitEnabled(true);
++
++      if (ref.current) {
++        const nx = (ref.current.position.x + rW / 2) * SCALE - (boundW * SCALE) / 2;
++        const ny = (ref.current.position.z + rL / 2) * SCALE - (boundD * SCALE) / 2;
++        onDragEnd(item.id, nx, ny, ref.current.rotation.y);
++      }
++
++      // Single click toggle state
++      if (!hasMoved.current && toggleInteractItem) {
++        if (["Wardrobe", "Floor Lamp", "Window", "Bookshelf"].includes(item.name)) {
++          toggleInteractItem(item.id);
++        }
++      }
++    };
++
++    window.addEventListener("pointermove", handlePointerMove);
++    window.addEventListener("pointerup", handlePointerUp);
++
++    return () => {
++      window.removeEventListener("pointermove", handlePointerMove);
++      window.removeEventListener("pointerup", handlePointerUp);
++    };
++  }, [activeDrag, hitFloor, rW, rL, boundW, boundD, item.id, item.name, onDragMove, onDragEnd, setOrbitEnabled, toggleInteractItem]);
++
+   const onDown = (e) => {
+     e.stopPropagation();
+     onSelect(item.id);
+-    isDrag.current = true;
++    setActiveDrag(true);
++    startPos.current = { x: e.clientX, y: e.clientY };
++    hasMoved.current = false;
+     setOrbitEnabled(false);
+-    gl.domElement.setPointerCapture(e.pointerId);
+-  };
+-
+-  const onMove = (e) => {
+-    if (!isDrag.current || !ref.current) return;
+-    const pos = hitFloor(e.clientX, e.clientY);
+-    if (!pos) return;
+-    ref.current.position.x = pos.x;
+-    ref.current.position.z = pos.z;
+-  };
+-
+-  const onUp = (e) => {
+-    if (!isDrag.current) return;
+-    isDrag.current = false;
+     setOrbitEnabled(true);
+-    gl.domElement.releasePointerCapture(e.pointerId);
++    try { gl.domElement.releasePointerCapture(e.pointerId); } catch (err) { }
++
+     if (ref.current) {
+-      onDragEnd(item.id, ref.current.position.x, ref.current.position.z);
++      const nx = (ref.current.position.x + rW / 2) * SCALE - (boundW * SCALE) / 2;
++      const ny = (ref.current.position.z + rL / 2) * SCALE - (boundD * SCALE) / 2;
++      onDragEnd(item.id, nx, ny, ref.current.rotation.y);
+     }
+   };
+ 
+   return (
+     <group
+       ref={ref}
+-      position={[item.x3d, 0, item.z3d]}
+-      rotation={[0, item.rotY || 0, 0]}
++      position={[item.x3d, 0.08, item.z3d]}
++      rotation={[0, item.rot || 0, 0]}
+       onPointerDown={onDown}
+       onPointerMove={onMove}
+       onPointerUp={onUp}
+@@ -270,309 +1421,202 @@ function FurnitureMesh({ item, selected, onSelect, onDragEnd,
+         d={meta.d}
+         color={item.color}
+         sel={selected}
++        isOpen={item.isOpen}
++        isLit={item.isLit}
+       />
+       {selected && (
+-        <mesh position={[0,0.015,0]} rotation={[-Math.PI/2,0,0]}>
++        <mesh position={[0, 0.015, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+           <ringGeometry args={[
+-            Math.max(meta.w,meta.d)*0.62,
+-            Math.max(meta.w,meta.d)*0.70, 48
++            Math.max(meta.w, meta.d) * 0.62,
++            Math.max(meta.w, meta.d) * 0.70, 48
+           ]} />
+-          <meshBasicMaterial color="#6c5ce7" transparent opacity={0.9} />
++          <meshBasicMaterial color={vastuEnabled ? "#d4a96a" : "#6c5ce7"} transparent opacity={0.85} />
+         </mesh>
+       )}
+     </group>
+   );
+ }
+ 
+-// ΓöÇΓöÇ Coord helpers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++// ΓöÇΓöÇ 2D Γåö 3D Coordinate Mappings ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+ function to3D(item, rW, rL) {
++  const rot = item.rot || 0;
++  const isRotated = Math.round(rot / (Math.PI / 2)) % 2 !== 0;
++  const hitW = isRotated ? item.h : item.w;
++  const hitH = isRotated ? item.w : item.h;
++
+   return {
+-    x3d: (item.x / SCALE) - rW / 2,
+-    z3d: (item.y / SCALE) - rL / 2,
+-  };
+-}
+-function to2D(x3d, z3d, rW, rL) {
+-  return {
+-    x: (x3d + rW / 2) * SCALE,
+-    y: (z3d + rL / 2) * SCALE,
++    x3d: ((item.x + hitW / 2) / SCALE) - rW / 2,
++    z3d: ((item.y + hitH / 2) / SCALE) - rL / 2,
+   };
+ }
+ 
+-// ΓöÇΓöÇ Main ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-export default function Canvas3D({ room, sharedItems, onItemsChange }) {
+-  const rL = parseFloat(room.length) || 5;
+-  const rW = parseFloat(room.width)  || 4;
+-  const rH = parseFloat(room.height) || 3;
++// ΓöÇΓöÇ Main 3D Canvas component ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++export default function Canvas3D({
++  room,
++  sharedItems,
++  onItemsChange,
++  onItemsCommit,
++  selectedId,
++  setSelectedId,
++  theme,
++  wallColor,
++  showDims,
++  vastuEnabled,
++  floorPattern,
++  wallPattern,
++  doorPos,
++  setDoorPos,
++  onInteract
++}) {
++  const rL = parseFloat(room.length) || 12;
++  const rW = parseFloat(room.width) || 10;
++  const rH = parseFloat(room.height) || 9;
+ 
+-  const [items3d,      setItems3d]      = useState([]);
+-  const [selectedId,   setSelectedId]   = useState(null);
++  const [items3d, setItems3d] = useState([]);
+   const [orbitEnabled, setOrbitEnabled] = useState(true);
+-  const idRef = useRef(9000);
+ 
+-  // ΓöÇΓöÇ 2D ΓåÆ 3D sync (keeps rotY and color) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++  // Sync shared items from Design Studio state to local 3D models
+   useEffect(() => {
+     if (!sharedItems) { setItems3d([]); return; }
+-    setItems3d(prev =>
+-      sharedItems.map(s => {
+-        const ex   = prev.find(p => p.id === s.id);
+-        const { x3d, z3d } = to3D(s, rW, rL);
+-        return {
+-          id:    s.id,
+-          name:  s.name,
+-          color: s.color,
+-          x3d,   z3d,
+-          rotY:  ex ? ex.rotY : 0,  // preserve rotation
+-        };
+-      })
+-    );
++    setItems3d(sharedItems.map(s => {
++      const { x3d, z3d } = to3D(s, rW, rL);
++      return {
++        id: s.id,
++        name: s.name,
++        color: s.color,
++        w: s.w,
++        h: s.h,
++        x3d, z3d,
++        rot: s.rot || 0,
++        isOpen: s.isOpen,
++        isLit: s.isLit
++      };
++    }));
+   }, [sharedItems, rW, rL]);
+ 
+-  // ΓöÇΓöÇ Add item ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-  const addItem = (preset) => {
+-    const newItem = {
+-      id:    ++idRef.current,
+-      name:  preset.name,
+-      x: 40, y: 40,
+-      w: preset.width  * SCALE,
+-      h: preset.length * SCALE,
+-      color: preset.color,
+-    };
+-    onItemsChange && onItemsChange([...(sharedItems||[]), newItem]);
+-  };
+-
+-  // ΓöÇΓöÇ Drag end ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-  const handleDragEnd = (id, x3d, z3d) => {
+-    const { x, y } = to2D(x3d, z3d, rW, rL);
+-    onItemsChange && onItemsChange(
+-      (sharedItems||[]).map(i => i.id===id ? {...i, x, y} : i)
+-    );
++  // Drag handlers
++  const handleDragMove = (id, x, y, rot) => {
++    const updated = sharedItems.map(i => i.id === id ? (rot !== undefined ? { ...i, x, y, rot } : { ...i, x, y }) : i);
++    onItemsChange && onItemsChange(updated);
+   };
+ 
+-  // ΓöÇΓöÇ Rotate 90┬░ button ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-  const rotateSelected = () => {
+-    if (!selectedId) return;
+-    setItems3d(prev =>
+-      prev.map(i => i.id===selectedId
+-        ? { ...i, rotY: (i.rotY || 0) + Math.PI / 2 }
+-        : i
+-      )
+-    );
++  const handleDragEnd = (id, x, y, rot) => {
++    const updated = sharedItems.map(i => i.id === id ? (rot !== undefined ? { ...i, x, y, rot } : { ...i, x, y }) : i);
++    onItemsCommit && onItemsCommit(updated);
+   };
+ 
+-  // ΓöÇΓöÇ Scroll rotate (small steps) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++  // Wheel scroll rotation with debounced commit to history
++  const rotateTimerRef = useRef(null);
+   const handleRotateDelta = useCallback((id, delta) => {
+-    setItems3d(prev =>
+-      prev.map(i => i.id===id
+-        ? { ...i, rotY: (i.rotY || 0) + delta }
+-        : i
+-      )
+-    );
+-  }, []);
+-
+-  // ΓöÇΓöÇ Color ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-  const changeColor = (color) => {
+-    if (!selectedId) return;
+-    setItems3d(prev =>
+-      prev.map(i => i.id===selectedId ? {...i, color} : i)
+-    );
+-    onItemsChange && onItemsChange(
+-      (sharedItems||[]).map(i => i.id===selectedId ? {...i, color} : i)
+-    );
+-  };
++    const updated = sharedItems.map(i => i.id === id ? { ...i, rot: (i.rot || 0) + delta } : i);
++    onItemsChange && onItemsChange(updated);
+ 
+-  // ΓöÇΓöÇ Remove ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-  const removeSelected = () => {
+-    setItems3d(prev => prev.filter(i => i.id!==selectedId));
+-    onItemsChange && onItemsChange(
+-      (sharedItems||[]).filter(i => i.id!==selectedId)
+-    );
+-    setSelectedId(null);
+-  };
++    if (rotateTimerRef.current) clearTimeout(rotateTimerRef.current);
++    rotateTimerRef.current = setTimeout(() => {
++      onItemsCommit && onItemsCommit(updated);
++    }, 400);
++  }, [sharedItems, onItemsChange, onItemsCommit]);
+ 
+-  const selItem = items3d.find(i => i.id===selectedId);
++  return (
++    <div style={{ width: "100%", height: "100%", position: "relative" }}>
++      {room.length && room.width ? (
++        <Canvas
++          id="webgl-canvas-element"
++          shadows
++          dpr={[1, 2]} // Fixes blurriness on Retina and high-DPI screens
++          gl={{ antialias: true, alpha: false, preserveDrawingBuffer: true, powerPreference: "high-performance" }} // Premium quality parameters
++          camera={{ position: [rL * 1.1, rH * 1.5, rW * 1.8], fov: 40 }}
++          style={{ width: "100%", height: "100%", background: "#05050f" }}
++          onPointerMissed={() => setSelectedId(null)}
++        >
++          {/* Lighting Rig */}
++          <ambientLight intensity={0.6} />
++          <directionalLight
++            position={[rL, rH * 2, rW]}
++            intensity={1.4}
++            castShadow
++            shadow-mapSize={[2048, 2048]}
++            shadow-camera-left={-rW * 1.8}
++            shadow-camera-right={rW * 1.8}
++            shadow-camera-top={rL * 1.8}
++            shadow-camera-bottom={-rL * 1.8}
++            shadow-bias={-0.0005} // reduces shadow artifacts
++          />
++          <pointLight position={[0, rH * 0.8, 0]} intensity={0.4} color="#a29bfe" />
++          <pointLight position={[rW / 2, rH * 0.5, 0]} intensity={0.25} color="#00cec9" />
++          <pointLight position={[-rW / 2, rH * 0.5, 0]} intensity={0.2} color="#d4a96a" />
+ 
+-  const S = {
+-    sb:  { background:"rgba(15,12,41,0.97)", borderRight:"1px solid rgba(162,155,254,0.15)", width:"185px", flexShrink:0, overflowY:"auto", padding:"10px", display:"flex", flexDirection:"column", gap:"8px" },
+-    sec: { background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:"10px", padding:"10px" },
+-    h:   { fontSize:"0.65rem", textTransform:"uppercase", letterSpacing:"1px", color:"#a29bfe", fontWeight:"800", marginBottom:"8px" },
+-    tb:  { padding:"6px 12px", borderRadius:"7px", cursor:"pointer", fontSize:"0.73rem", fontWeight:"600", transition:"all 0.15s", border:"none" },
+-  };
++          {/* Stylized Outdoor House Backdrop */}
++          <OutdoorScenery rW={rW} rL={rL} />
+ 
+-  return (
+-    <div style={{display:"flex", height:"100%", background:"linear-gradient(135deg,#0f0c29,#302b63,#24243e)"}}>
+-
+-      {/* ΓöÇΓöÇ Sidebar ΓöÇΓöÇ */}
+-      <div style={S.sb}>
+-
+-        {/* Selected controls */}
+-        {selItem && (
+-          <div style={S.sec}>
+-            <div style={S.h}>Γ£Å∩╕Å {selItem.name}</div>
+-
+-            <button onClick={rotateSelected} style={{
+-              ...S.tb, width:"100%", marginBottom:"6px",
+-              background:"rgba(108,92,231,0.2)",
+-              border:"1px solid rgba(108,92,231,0.4)",
+-              color:"#a29bfe",
+-            }}>≡ƒöä Rotate 90┬░</button>
+-
+-            <button onClick={removeSelected} style={{
+-              ...S.tb, width:"100%", marginBottom:"10px",
+-              background:"rgba(225,112,85,0.15)",
+-              border:"1px solid rgba(225,112,85,0.3)",
+-              color:"#e17055",
+-            }}>≡ƒùæ∩╕Å Remove</button>
+-
+-            <div style={S.h}>≡ƒÄ¿ Color</div>
+-            <div style={{display:"flex", flexWrap:"wrap", gap:"5px"}}>
+-              {FUR_COLORS.map(c=>(
+-                <div key={c} onClick={()=>changeColor(c)} style={{
+-                  width:"26px", height:"26px", borderRadius:"6px",
+-                  cursor:"pointer", background:c, flexShrink:0,
+-                  border: selItem.color===c ? "2.5px solid #fff" : "2px solid transparent",
+-                  transition:"transform 0.12s",
+-                }}
+-                  onMouseEnter={e=>e.currentTarget.style.transform="scale(1.2)"}
+-                  onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}
+-                />
+-              ))}
+-            </div>
+-            <p style={{color:"rgba(255,255,255,0.3)", fontSize:"0.65rem", marginTop:"10px", textAlign:"center"}}>
+-              ≡ƒû▒∩╕Å Scroll over room to rotate selected
+-            </p>
+-          </div>
+-        )}
+-
+-        {/* Catalog */}
+-        <div style={S.sec}>
+-          <div style={S.h}>≡ƒ¢ï∩╕Å Add Furniture</div>
+-          {CATALOG.map(p=>(
+-            <button key={p.name} onClick={()=>addItem(p)} style={{
+-              display:"flex", alignItems:"center", gap:"7px",
+-              width:"100%", padding:"6px 7px", marginBottom:"3px",
+-              background:"rgba(255,255,255,0.03)",
+-              border:"1px solid rgba(255,255,255,0.06)",
+-              borderRadius:"7px", cursor:"pointer", color:"#ccc",
+-              fontSize:"0.73rem", textAlign:"left", transition:"all 0.15s",
+-            }}
+-              onMouseEnter={e=>{e.currentTarget.style.borderColor="#a29bfe"; e.currentTarget.style.background="rgba(108,92,231,0.15)";}}
+-              onMouseLeave={e=>{e.currentTarget.style.borderColor="rgba(255,255,255,0.06)"; e.currentTarget.style.background="rgba(255,255,255,0.03)";}}
+-            >
+-              <div style={{width:"24px",height:"24px",borderRadius:"5px",background:p.color+"33",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.85rem",flexShrink:0}}>{p.icon}</div>
+-              <div>
+-                <div style={{fontWeight:"600",fontSize:"0.73rem"}}>{p.name}</div>
+-                <div style={{color:"#555",fontSize:"0.62rem"}}>{p.length}├ù{p.width}ft</div>
+-              </div>
+-            </button>
++          {/* Raised Room boundaries (Floor, Walls) */}
++          <group position={[0, 0.08, 0]}>
++            <Room
++              rL={rL}
++              rW={rW}
++              rH={rH}
++              theme={theme}
++              wallColor={wallColor}
++              floorPattern={floorPattern}
++              wallPattern={wallPattern}
++              doorPos={doorPos}
++              setDoorPos={setDoorPos}
++              setOrbitEnabled={setOrbitEnabled}
++            />
++          </group>
++
++          {/* Render Furniture */}
++          {items3d.map(item => (
++            <FurnitureMesh
++              key={item.id}
++              item={item}
++              selected={selectedId === item.id}
++              onSelect={setSelectedId}
++              onDragEnd={handleDragEnd}
++              onDragMove={handleDragMove}
++              onRotateDelta={handleRotateDelta}
++              setOrbitEnabled={setOrbitEnabled}
++              rW={rW}
++              rL={rL}
++              vastuEnabled={vastuEnabled}
++            />
+           ))}
+-        </div>
+-      </div>
+-
+-      {/* ΓöÇΓöÇ 3D Canvas ΓöÇΓöÇ */}
+-      <div style={{flex:1, display:"flex", flexDirection:"column"}}>
+-
+-        {/* Toolbar */}
+-        <div style={{
+-          display:"flex", gap:"6px", padding:"7px 14px",
+-          background:"rgba(15,12,41,0.97)",
+-          borderBottom:"1px solid rgba(162,155,254,0.15)",
+-          alignItems:"center", flexWrap:"wrap", flexShrink:0,
+-        }}>
+-          {selectedId ? (
+-            <>
+-              <span style={{fontSize:"0.74rem",color:"#a29bfe",fontWeight:"700"}}>
+-                ΓùÅ {selItem?.name}
+-              </span>
+-              <button onClick={rotateSelected} style={{
+-                padding:"5px 12px", borderRadius:"7px", cursor:"pointer",
+-                fontSize:"0.73rem", fontWeight:"600",
+-                background:"rgba(108,92,231,0.2)",
+-                border:"1px solid rgba(108,92,231,0.4)",
+-                color:"#a29bfe",
+-              }}>≡ƒöä Rotate 90┬░</button>
+-              <button onClick={removeSelected} style={{
+-                padding:"5px 12px", borderRadius:"7px", cursor:"pointer",
+-                fontSize:"0.73rem", fontWeight:"600",
+-                background:"rgba(225,112,85,0.15)",
+-                border:"1px solid rgba(225,112,85,0.3)",
+-                color:"#e17055",
+-              }}>≡ƒùæ∩╕Å Remove</button>
+-            </>
+-          ) : (
+-            <span style={{fontSize:"0.72rem",color:"rgba(255,255,255,0.3)"}}>
+-              Click any furniture to select it
+-            </span>
+-          )}
+-          <div style={{flex:1}} />
+-          <span style={{fontSize:"0.63rem",color:"rgba(255,255,255,0.2)"}}>
+-            ≡ƒû▒∩╕Å Drag ΓåÆ move &nbsp;|&nbsp;
+-            Scroll (selected) ΓåÆ rotate furniture &nbsp;|&nbsp;
+-            Right-drag ΓåÆ rotate camera &nbsp;|&nbsp;
+-            Ctrl+Scroll ΓåÆ zoom
+-          </span>
+-        </div>
+ 
+-        {/* 3D Canvas */}
+-        <div style={{flex:1}}>
+-          {room.length && room.width ? (
+-            <Canvas
+-              shadows
+-              camera={{position:[rL*1.1, rH*1.9, rW*2.2], fov:45}}
+-              style={{
+-                width:"100%", height:"100%",
+-                background:"linear-gradient(160deg,#0f0c29 0%,#302b63 100%)",
+-              }}
+-              onPointerMissed={()=>setSelectedId(null)}
+-            >
+-              <ambientLight intensity={0.6} />
+-              <directionalLight
+-                position={[rL,rH*2,rW]} intensity={1.3} castShadow
+-                shadow-mapSize={[2048,2048]}
+-                shadow-camera-left={-rW*2} shadow-camera-right={rW*2}
+-                shadow-camera-top={rL*2}   shadow-camera-bottom={-rL*2}
+-              />
+-              <pointLight position={[0,rH*0.8,0]}    intensity={0.3}  color="#a29bfe" />
+-              <pointLight position={[rW/2,rH*0.5,0]} intensity={0.2}  color="#00b894" />
+-              <pointLight position={[-rW/2,rH*0.5,0]} intensity={0.15} color="#6c5ce7" />
+-
+-              <Room rL={rL} rW={rW} rH={rH} />
+-
+-              {items3d.map(item=>(
+-                <FurnitureMesh
+-                  key={item.id}
+-                  item={item}
+-                  selected={selectedId===item.id}
+-                  onSelect={setSelectedId}
+-                  onDragEnd={handleDragEnd}
+-                  onRotateDelta={handleRotateDelta}
+-                  setOrbitEnabled={setOrbitEnabled}
+-                  rW={rW} rL={rL}
+-                />
+-              ))}
+-
+-              <OrbitControls
+-                enabled={orbitEnabled}
+-                enableDamping
+-                dampingFactor={0.06}
+-                mouseButtons={{
+-                  LEFT:   THREE.MOUSE.ROTATE,
+-                  MIDDLE: THREE.MOUSE.DOLLY,
+-                  RIGHT:  THREE.MOUSE.ROTATE,
+-                }}
+-                touches={{
+-                  ONE: THREE.TOUCH.ROTATE,
+-                  TWO: THREE.TOUCH.DOLLY_PAN,
+-                }}
+-              />
+-            </Canvas>
+-          ) : (
+-            <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%"}}>
+-              <div style={{fontSize:"4rem",opacity:0.2,marginBottom:"16px"}}>≡ƒºè</div>
+-              <div style={{color:"rgba(255,255,255,0.4)"}}>Set room dimensions to see 3D</div>
+-            </div>
++          {/* Render Vastu Grid Overlay in 3D */}
++          {vastuEnabled && (
++            <VastuOverlay
++              rW={rW}
++              rL={rL}
++              selectedId={selectedId}
++              sharedItems={sharedItems}
++            />
+           )}
++
++          {/* Camera Controls */}
++          <OrbitControls
++            enabled={orbitEnabled}
++            enableDamping
++            dampingFactor={0.06}
++            minDistance={2}
++            maxDistance={rW * 5}
++            maxPolarAngle={Math.PI / 2 - 0.05} // prevent going below floor
++            mouseButtons={{
++              LEFT: THREE.MOUSE.ROTATE,
++              MIDDLE: THREE.MOUSE.DOLLY,
++              RIGHT: THREE.MOUSE.ROTATE,
++            }}
++            touches={{
++              ONE: THREE.TOUCH.ROTATE,
++              TWO: THREE.TOUCH.DOLLY_PAN,
++            }}
++          />
++        </Canvas>
++      ) : (
++        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%" }}>
++          <div style={{ fontSize: "4rem", opacity: 0.2, marginBottom: "16px" }}>≡ƒºº</div>
++          <div style={{ color: "rgba(255,255,255,0.4)" }}>Set room dimensions to see 3D</div>
+         </div>
+-      </div>
++      )}
+     </div>
+   );
+ }
+\ No newline at end of file
