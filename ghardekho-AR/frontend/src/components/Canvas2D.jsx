@@ -209,7 +209,7 @@ function drawFurnitureSymbol(ctx, item, sel, showDims) {
 
   // Label text
   const fs = Math.min(11, Math.max(8, Math.min(w, h)/3.5));
-  ctx.fillStyle    = "rgba(255,255,255,0.92)";
+  ctx.fillStyle    = "rgba(30,30,50,0.92)";
   ctx.font         = `700 ${fs}px 'Segoe UI', system-ui, sans-serif`;
   ctx.textAlign    = "center";
   ctx.textBaseline = "middle";
@@ -249,7 +249,7 @@ function draw(canvas, room, items, theme, wallColor, showDims, selId, vastuEnabl
   canvas.width  = W + P * 2;
   canvas.height = H + P * 2;
 
-  ctx.fillStyle = "#070718";
+  ctx.fillStyle = "#f3f4f6";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.save();
   ctx.translate(P, P);
@@ -306,7 +306,6 @@ function draw(canvas, room, items, theme, wallColor, showDims, selId, vastuEnabl
   } else if (floorPattern === "Chevron Wood") {
     ctx.fillStyle = "#7c5030";
     ctx.fillRect(0, 0, W, H);
-    // Draw chevron column lines
     ctx.strokeStyle = "rgba(0,0,0,0.15)";
     ctx.lineWidth = 1;
     for (let x = 0; x < W + 100; x += 40) {
@@ -317,6 +316,134 @@ function draw(canvas, room, items, theme, wallColor, showDims, selId, vastuEnabl
       }
       ctx.stroke();
     }
+  } else if (floorPattern === "Hardwood Flooring") {
+    const plankH = Math.round(SCALE * 0.38); const plankW = Math.round(SCALE * 2.5);
+    for (let y = 0; y < H; y += plankH) {
+      const xOff = (Math.floor(y / plankH) % 3) * (plankW / 3);
+      for (let x = -plankW; x < W + plankW; x += plankW) {
+        const hash = Math.abs(Math.sin(x * 7.19 + y * 31.41) * 9999.9) % 1;
+        const r = Math.floor(155 + hash * 40), g2 = Math.floor(98 + hash * 30), b = Math.floor(48 + hash * 18);
+        ctx.fillStyle = `rgb(${r},${g2},${b})`;
+        ctx.fillRect(x + xOff, y, plankW, plankH);
+        ctx.strokeStyle = "rgba(0,0,0,0.18)"; ctx.lineWidth = 1;
+        ctx.strokeRect(x + xOff, y, plankW, plankH);
+      }
+    }
+  } else if (floorPattern === "Herringbone Wood") {
+    ctx.fillStyle = "#8b5a2b";
+    ctx.fillRect(0, 0, W, H);
+    const pw = 28; const ph = 70;
+    ctx.strokeStyle = "rgba(0,0,0,0.28)"; ctx.lineWidth = 1.2;
+    for (let row = -2; row < H / ph + 2; row++) {
+      for (let col = -2; col < W / (pw*2) + 2; col++) {
+        const bx = col * pw * 2; const by = row * ph;
+        ctx.save(); ctx.translate(bx, by); ctx.rotate(Math.PI / 4);
+        const h = Math.abs(Math.sin(bx * 3.7 + by * 2.1) * 0.12);
+        ctx.fillStyle = `rgba(0,0,0,${0.08 + h * 0.1})`; ctx.fillRect(0, 0, pw, ph);
+        ctx.strokeRect(0, 0, pw, ph); ctx.restore();
+        ctx.save(); ctx.translate(bx + pw * 2, by); ctx.rotate(-Math.PI / 4);
+        ctx.fillStyle = `rgba(255,255,255,${0.04 + h * 0.06})`; ctx.fillRect(-pw, 0, pw, ph);
+        ctx.strokeRect(-pw, 0, pw, ph); ctx.restore();
+      }
+    }
+  } else if (floorPattern === "Marble Flooring") {
+    ctx.fillStyle = "#f4f1ec"; ctx.fillRect(0, 0, W, H);
+    for (let i = 0; i < 12; i++) {
+      const sx = (Math.abs(Math.sin(i * 13.57)) * W) % W;
+      ctx.strokeStyle = i % 3 === 0 ? "rgba(80,80,80,0.15)" : "rgba(150,140,130,0.1)";
+      ctx.lineWidth = 1 + (i % 3);
+      ctx.beginPath(); ctx.moveTo(sx, 0); ctx.bezierCurveTo(sx + 40, H * 0.3, sx - 50, H * 0.7, sx + 15, H); ctx.stroke();
+    }
+    ctx.strokeStyle = "rgba(0,0,0,0.08)"; ctx.lineWidth = 1.5;
+    for (let x = 0; x < W; x += 100) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 100) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  } else if (floorPattern === "Granite Flooring") {
+    ctx.fillStyle = "#3a3a3a"; ctx.fillRect(0, 0, W, H);
+    for (let i = 0; i < 2000; i++) {
+      const sx = Math.random() * W; const sy = Math.random() * H;
+      const g = Math.random();
+      ctx.fillStyle = g > 0.6 ? `rgba(255,255,255,${0.08 + g*0.1})` : `rgba(0,0,0,${0.05 + g*0.05})`;
+      ctx.fillRect(sx, sy, 2, 1);
+    }
+    ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.lineWidth = 2;
+    for (let x = 0; x < W; x += 100) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 100) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  } else if (floorPattern === "Ceramic Tiles") {
+    const tSize = 50;
+    for (let y = 0; y < H; y += tSize) {
+      for (let x = 0; x < W; x += tSize) {
+        const h = Math.abs(Math.sin(x * 3.1 + y * 7.3) * 0.06);
+        ctx.fillStyle = `rgb(${Math.floor(238+h*10)},${Math.floor(232+h*8)},${Math.floor(220+h*6)})`;
+        ctx.fillRect(x, y, tSize, tSize);
+      }
+    }
+    ctx.strokeStyle = "rgba(160,150,140,0.5)"; ctx.lineWidth = 1.5;
+    for (let x = 0; x <= W; x += tSize) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y = 0; y <= H; y += tSize) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  } else if (floorPattern === "Porcelain Tiles") {
+    const tSize = 100;
+    for (let y = 0; y < H; y += tSize) {
+      for (let x = 0; x < W; x += tSize) {
+        const h = Math.abs(Math.sin(x * 1.9 + y * 4.3) * 0.04);
+        ctx.fillStyle = `rgb(${Math.floor(245+h*8)},${Math.floor(243+h*6)},${Math.floor(240+h*5)})`;
+        ctx.fillRect(x, y, tSize, tSize);
+      }
+    }
+    ctx.strokeStyle = "rgba(190,185,180,0.35)"; ctx.lineWidth = 1;
+    for (let x = 0; x <= W; x += tSize) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y = 0; y <= H; y += tSize) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  } else if (floorPattern === "Vinyl Flooring") {
+    const plankH = Math.round(SCALE * 0.55); const plankW = Math.round(SCALE * 3.2);
+    for (let y = 0; y < H; y += plankH) {
+      const xOff = (Math.floor(y / plankH) % 2) * (plankW / 2);
+      for (let x = -plankW; x < W + plankW; x += plankW) {
+        const hash = Math.abs(Math.sin(x * 5.2 + y * 22.1) * 8888) % 1;
+        ctx.fillStyle = `rgb(${Math.floor(195+hash*25)},${Math.floor(192+hash*20)},${Math.floor(188+hash*18)})`;
+        ctx.fillRect(x + xOff, y, plankW, plankH);
+        ctx.strokeStyle = "rgba(0,0,0,0.08)"; ctx.lineWidth = 0.8;
+        ctx.strokeRect(x + xOff, y, plankW, plankH);
+      }
+    }
+  } else if (floorPattern === "Concrete Flooring") {
+    ctx.fillStyle = "#a8a49e"; ctx.fillRect(0, 0, W, H);
+    for (let i = 0; i < 800; i++) {
+      const sx = Math.random() * W; const sy = Math.random() * H;
+      ctx.fillStyle = Math.random() > 0.5 ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.04)";
+      ctx.fillRect(sx, sy, 3, 2);
+    }
+    ctx.strokeStyle = "rgba(0,0,0,0.1)"; ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 150) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y = 0; y < H; y += 150) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  } else if (floorPattern === "Parquet Flooring") {
+    const blockSize = 60;
+    for (let row = 0; row < Math.ceil(H / blockSize); row++) {
+      for (let col = 0; col < Math.ceil(W / blockSize); col++) {
+        const bx = col * blockSize; const by = row * blockSize;
+        const alternate = (row + col) % 2 === 0;
+        const pW = blockSize / 4;
+        for (let p = 0; p < 4; p++) {
+          const hash = Math.abs(Math.sin((bx + p * pW) * 9.12 + by * 5.67) * 9999) % 1;
+          const lv = Math.floor(150 + hash * 50);
+          ctx.fillStyle = `rgb(${lv+20},${Math.floor(lv*0.65)},${Math.floor(lv*0.3)})`;
+          if (alternate) { ctx.fillRect(bx + p * pW, by, pW, blockSize); ctx.strokeStyle="rgba(0,0,0,0.15)"; ctx.lineWidth=0.8; ctx.strokeRect(bx+p*pW,by,pW,blockSize); }
+          else { ctx.fillRect(bx, by + p * pW, blockSize, pW); ctx.strokeStyle="rgba(0,0,0,0.15)"; ctx.lineWidth=0.8; ctx.strokeRect(bx,by+p*pW,blockSize,pW); }
+        }
+        ctx.strokeStyle = "rgba(0,0,0,0.22)"; ctx.lineWidth = 1.5;
+        ctx.strokeRect(bx, by, blockSize, blockSize);
+      }
+    }
+  } else if (floorPattern === "Modern Grey Tiles") {
+    const tSize = 100;
+    for (let y = 0; y < H; y += tSize) {
+      for (let x = 0; x < W; x += tSize) {
+        const h = Math.abs(Math.sin(x * 2.3 + y * 5.7) * 0.05);
+        ctx.fillStyle = `rgb(${Math.floor(165+h*15)},${Math.floor(165+h*12)},${Math.floor(168+h*10)})`;
+        ctx.fillRect(x, y, tSize, tSize);
+      }
+    }
+    ctx.strokeStyle = "rgba(120,120,125,0.45)"; ctx.lineWidth = 1.5;
+    for (let x = 0; x <= W; x += tSize) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+    for (let y = 0; y <= H; y += tSize) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
   } else {
     // Planks (Classic/Dark wood planks)
     const plankH = SCALE * 0.45;
@@ -453,14 +580,14 @@ function draw(canvas, room, items, theme, wallColor, showDims, selId, vastuEnabl
       // Draw Vastu text labels
       ctx.fillStyle = isActive 
         ? compatibility.color 
-        : (z.id === "C" ? "rgba(212, 169, 106, 0.45)" : "rgba(255, 255, 255, 0.22)");
-      ctx.font = "bold 9px 'Segoe UI', system-ui, sans-serif";
+        : (z.id === "C" ? "#d4a96a" : "#4b5563");
+      ctx.font = "bold 9.5px 'Segoe UI', system-ui, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(z.label, z.x, z.y - 5);
       
-      ctx.font = "600 8px 'Segoe UI', sans-serif";
-      ctx.fillStyle = isActive ? compatibility.color + "bb" : "rgba(255, 255, 255, 0.15)";
+      ctx.font = "600 8.5px 'Segoe UI', sans-serif";
+      ctx.fillStyle = isActive ? compatibility.color + "bb" : "#8c96a3";
       ctx.fillText(z.sub, z.x, z.y + 6);
     });
 
@@ -476,6 +603,14 @@ function draw(canvas, room, items, theme, wallColor, showDims, selId, vastuEnabl
   ctx.fillRect(-WT, -WT, WT, H + WT * 2);
   ctx.fillRect(W, -WT, WT, H + WT * 2);
 
+  // Wall border outline
+  ctx.strokeStyle = "rgba(0,0,0,0.3)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-WT, -WT, W + WT * 2, H + WT * 2);
+  ctx.strokeStyle = "rgba(0,0,0,0.12)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(0, 0, W, H);
+
   // ── Draw Door Blueprint Symbol on snapped wall ──
   const dw = 0.9 * SCALE;
   const doorWall = doorPos.wall || 'left';
@@ -484,7 +619,7 @@ function draw(canvas, room, items, theme, wallColor, showDims, selId, vastuEnabl
   ctx.save();
   if (doorWall === 'left') {
     const dy = Math.max(dw / 2, Math.min(H - dw / 2, doorOffset * H));
-    ctx.fillStyle = "#070718";
+    ctx.fillStyle = "#f3f4f6";
     ctx.fillRect(-WT - 1, dy - dw/2, WT + 2, dw);
     ctx.strokeStyle = wc;
     ctx.lineWidth = 1.8;
@@ -492,12 +627,12 @@ function draw(canvas, room, items, theme, wallColor, showDims, selId, vastuEnabl
     ctx.moveTo(-WT, dy - dw/2); ctx.lineTo(0, dy - dw/2);
     ctx.moveTo(-WT, dy + dw/2); ctx.lineTo(0, dy + dw/2);
     ctx.stroke();
-    ctx.strokeStyle = "#a29bfe";
+    ctx.strokeStyle = "#6c5ce7";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, dy - dw/2); ctx.lineTo(dw, dy - dw/2);
     ctx.stroke();
-    ctx.strokeStyle = "rgba(162, 155, 254, 0.4)";
+    ctx.strokeStyle = "rgba(108, 92, 231, 0.35)";
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
@@ -506,7 +641,7 @@ function draw(canvas, room, items, theme, wallColor, showDims, selId, vastuEnabl
     ctx.setLineDash([]);
   } else if (doorWall === 'right') {
     const dy = Math.max(dw / 2, Math.min(H - dw / 2, doorOffset * H));
-    ctx.fillStyle = "#070718";
+    ctx.fillStyle = "#f3f4f6";
     ctx.fillRect(W - 1, dy - dw/2, WT + 2, dw);
     ctx.strokeStyle = wc;
     ctx.lineWidth = 1.8;
@@ -514,12 +649,12 @@ function draw(canvas, room, items, theme, wallColor, showDims, selId, vastuEnabl
     ctx.moveTo(W, dy - dw/2); ctx.lineTo(W + WT, dy - dw/2);
     ctx.moveTo(W, dy + dw/2); ctx.lineTo(W + WT, dy + dw/2);
     ctx.stroke();
-    ctx.strokeStyle = "#a29bfe";
+    ctx.strokeStyle = "#6c5ce7";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(W, dy - dw/2); ctx.lineTo(W - dw, dy - dw/2);
     ctx.stroke();
-    ctx.strokeStyle = "rgba(162, 155, 254, 0.4)";
+    ctx.strokeStyle = "rgba(108, 92, 231, 0.35)";
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
@@ -528,7 +663,7 @@ function draw(canvas, room, items, theme, wallColor, showDims, selId, vastuEnabl
     ctx.setLineDash([]);
   } else if (doorWall === 'back' || doorWall === 'top') {
     const dx = Math.max(dw / 2, Math.min(W - dw / 2, doorOffset * W));
-    ctx.fillStyle = "#070718";
+    ctx.fillStyle = "#f3f4f6";
     ctx.fillRect(dx - dw/2, -WT - 1, dw, WT + 2);
     ctx.strokeStyle = wc;
     ctx.lineWidth = 1.8;
@@ -536,12 +671,12 @@ function draw(canvas, room, items, theme, wallColor, showDims, selId, vastuEnabl
     ctx.moveTo(dx - dw/2, -WT); ctx.lineTo(dx - dw/2, 0);
     ctx.moveTo(dx + dw/2, -WT); ctx.lineTo(dx + dw/2, 0);
     ctx.stroke();
-    ctx.strokeStyle = "#a29bfe";
+    ctx.strokeStyle = "#6c5ce7";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(dx - dw/2, 0); ctx.lineTo(dx - dw/2, dw);
     ctx.stroke();
-    ctx.strokeStyle = "rgba(162, 155, 254, 0.4)";
+    ctx.strokeStyle = "rgba(108, 92, 231, 0.35)";
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
@@ -550,7 +685,7 @@ function draw(canvas, room, items, theme, wallColor, showDims, selId, vastuEnabl
     ctx.setLineDash([]);
   } else {
     const dx = Math.max(dw / 2, Math.min(W - dw / 2, doorOffset * W));
-    ctx.fillStyle = "#070718";
+    ctx.fillStyle = "#f3f4f6";
     ctx.fillRect(dx - dw/2, H - 1, dw, WT + 2);
     ctx.strokeStyle = wc;
     ctx.lineWidth = 1.8;
@@ -558,12 +693,12 @@ function draw(canvas, room, items, theme, wallColor, showDims, selId, vastuEnabl
     ctx.moveTo(dx - dw/2, H); ctx.lineTo(dx - dw/2, H + WT);
     ctx.moveTo(dx + dw/2, H); ctx.lineTo(dx + dw/2, H + WT);
     ctx.stroke();
-    ctx.strokeStyle = "#a29bfe";
+    ctx.strokeStyle = "#6c5ce7";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(dx - dw/2, H); ctx.lineTo(dx - dw/2, H - dw);
     ctx.stroke();
-    ctx.strokeStyle = "rgba(162, 155, 254, 0.4)";
+    ctx.strokeStyle = "rgba(108, 92, 231, 0.35)";
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 3]);
     ctx.beginPath();
@@ -573,12 +708,13 @@ function draw(canvas, room, items, theme, wallColor, showDims, selId, vastuEnabl
   }
   ctx.restore();
 
-  ctx.strokeStyle = "rgba(0,0,0,0.4)";
+  // outer border (was dark)
+  ctx.strokeStyle = "rgba(0,0,0,0.3)";
   ctx.lineWidth = 2.5;
-  ctx.strokeRect(-WT, -WT, W + WT * 2, H + WT * 2);
+  // Already handled above — skip the old strokeRect
 
   // Background dots helper
-  ctx.fillStyle = "rgba(255,255,255,0.06)";
+  ctx.fillStyle = "rgba(0,0,0,0.1)";
   for (let x = SCALE; x < W; x += SCALE) {
     for (let y = SCALE; y < H; y += SCALE) {
       ctx.beginPath(); ctx.arc(x, y, 1.2, 0, Math.PI * 2); ctx.fill();
@@ -593,8 +729,8 @@ function draw(canvas, room, items, theme, wallColor, showDims, selId, vastuEnabl
 
   // Room outline dimension markings
   if (showDims) {
-    ctx.strokeStyle = "#6c5ce7";
-    ctx.fillStyle   = "#a29bfe";
+    ctx.strokeStyle = "#4f46e5";
+    ctx.fillStyle   = "#4338ca";
     ctx.lineWidth   = 1.2;
     ctx.font        = "bold 11px 'Segoe UI', sans-serif";
     ctx.textAlign   = "center";
@@ -695,6 +831,7 @@ export default function Canvas2D({
     const isNearDoor = Math.abs(pos.x - doorX) < 24 && Math.abs(pos.y - doorY) < 24;
 
     if (isNearDoor) {
+      setSelectedId("door");
       setDragging({ type: "door", ox: pos.x - doorX, oy: pos.y - doorY });
       e.currentTarget.setPointerCapture(e.pointerId);
       if (canvasRef.current) {
@@ -814,7 +951,7 @@ export default function Canvas2D({
     let y = pos.y - dragging.oy;
     let rot = it.rot || 0;
 
-    if (it.name === "Window") {
+    if (it.name === "Window" || it.name === "AC Unit") {
       const dLeft = Math.abs(x);
       const dRight = Math.abs(x - (rW - hitW));
       const dTop = Math.abs(y);
@@ -874,15 +1011,16 @@ export default function Canvas2D({
   return (
     <div style={{ 
       width: "100%", height: "100%", display: "flex", justifyContent: "center", 
-      alignItems: "center", padding: "24px", overflow: "auto" 
+      alignItems: "center", padding: "24px", overflow: "auto",
+      background: "#f0f2f5"
     }}>
       {room.length && room.width ? (
         <canvas 
           id="blueprint-canvas-element"
           ref={canvasRef}
           style={{
-            borderRadius: "10px", 
-            boxShadow: "0 12px 48px rgba(0,0,0,0.65), 0 0 0 1px rgba(108,92,231,0.22)", 
+            borderRadius: "12px", 
+            boxShadow: "0 8px 32px rgba(0,0,0,0.12), 0 0 0 1px rgba(79,70,229,0.15)", 
             maxWidth: "100%", 
             maxHeight: "100%",
             touchAction: "none"
