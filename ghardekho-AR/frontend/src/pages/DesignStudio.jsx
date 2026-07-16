@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Canvas2D from "../components/Canvas2D";
 import Canvas3D from "../components/Canvas3D";
 import { getZoneFromCoords, getVastuCompatibility, VASTU_ZONES } from "../utils/vastuRules";
@@ -14,6 +14,10 @@ import {
   playLampClickSound 
 } from "../utils/audioHelper";
 import { playVanishSound } from "../utils/sounds";
+import {
+  getProject, createProject, updateProject,
+  generateThumbnail, collectDesignState
+} from "../utils/projectStorage";
 
 
 
@@ -25,7 +29,7 @@ const CATALOG = [
   { name: "Wardrobe",     icon: "🚪", length: 1.4, width: 2.8, color: "#c8a96e", category: "Bedroom" },
   { name: "Side Table",   icon: "🟤", length: 1.2, width: 1.2, color: "#a29bfe", category: "Bedroom" },
   { name: "Sofa",         icon: "🛋️", length: 1.8, width: 3.2, color: "#7c6b9e", category: "Living"  },
-  { name: "Armchair",     icon: "🪑", length: 1.6, width: 1.6, color: "#9b7ec8", category: "Living"  },
+  { name: "Armchair",     icon: "🪑", length: 1.25, width: 2.9, color: "#9b7ec8", category: "Living"  },
   { name: "Coffee Table", icon: "🟫", length: 1.4, width: 2.4, color: "#a07840", category: "Living"  },
   { name: "TV Unit",      icon: "📺", length: 1.0, width: 3.0, color: "#2d3436", category: "Living"  },
   { name: "Floor Lamp",   icon: "💡", length: 0.8, width: 0.8, color: "#fdcb6e", category: "Living"  },
@@ -33,7 +37,7 @@ const CATALOG = [
   { name: "Dining Table", icon: "🍽️", length: 2.0, width: 3.0, color: "#e17055", category: "Dining"  },
   { name: "Chair",        icon: "🪑", length: 1.2, width: 1.2, color: "#d4a96a", category: "Dining"  },
   { name: "Study Desk",   icon: "🖥️", length: 1.4, width: 2.8, color: "#fdcb6e", category: "Study"   },
-  { name: "Bookshelf",    icon: "📚", length: 0.7, width: 2.0, color: "#6c5ce7", category: "Study"   },
+  { name: "Bookshelf",    icon: "📚", length: 1.8, width: 4.0, color: "#6c5ce7", category: "Study"   },
   { name: "AC Unit",      icon: "❄️",  length: 0.6, width: 2.0, color: "#dfe6e9", category: "Living"  },
   { name: "Shoe Rack",    icon: "👞", length: 1.0, width: 2.0, color: "#b2bec3", category: "Living"  },
   { name: "Mirror",       icon: "🪞", length: 0.4, width: 1.8, color: "#74b9ff", category: "Bedroom" },
@@ -63,13 +67,24 @@ const FUR_COLORS = [
 
 export default function DesignStudio() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlFolderId = searchParams.get("folderId");
+  const urlProjectId = searchParams.get("projectId");
+  const urlMode = searchParams.get("mode"); // "new" or null
   
   // Room dimensions state (length, width, height in feet)
   const [room, setRoom] = useState({ length: "12", width: "10", height: "9" });
   const [tempRoom, setTempRoom] = useState({ length: "", width: "", height: "" });
   const [roomSet, setRoomSet] = useState(false);
 
-
+  // Project management state
+  const [projectFolderId, setProjectFolderId] = useState(urlFolderId || null);
+  const [projectId, setProjectId] = useState(urlProjectId || null);
+  const [projectName, setProjectName] = useState("");
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [saveProjectName, setSaveProjectName] = useState("");
+  const [toast, setToast] = useState(null);
+  const projectLoadedRef = useRef(false);
 
   // Door position state (movable)
   const [doorPos, setDoorPos] = useState({ wall: 'left', offset: 0.5 });
@@ -83,7 +98,8 @@ export default function DesignStudio() {
   const [floorPattern, setFloorPattern] = useState("Classic Planks");
   const [wallPattern, setWallPattern] = useState("Solid Paint");
   const [wallVisibility, setWallVisibility] = useState("solid"); // "solid", "transparent", "low", "hide"
-  const [showScenery, setShowScenery] = useState(true);
+  const [showScenery, setShowScenery] = useState(false);
+  const [cameraAngle, setCameraAngle] = useState("Room");
   
   // Auth states
   const [currentUser, setCurrentUser] = useState(() => JSON.parse(localStorage.getItem("ghardekho_active_user") || "null"));
@@ -95,6 +111,79 @@ export default function DesignStudio() {
       navigate("/");
     }
   }, [currentUser, navigate]);
+
+  // Load saved project on mount
+  useEffect(() => {
+    if (projectLoadedRef.current) return;
+    if (urlProjectId && urlFolderId) {
+      const proj = getProject(urlFolderId, urlProjectId);
+      if (proj && proj.data) {
+        const d = proj.data;
+        setRoom(d.room || { length: "12", width: "10", height: "9" });
+        setTempRoom(d.room || { length: "", width: "", height: "" });
+        setSharedItems(d.sharedItems || []);
+        setDoorPos(d.doorPos || { wall: 'left', offset: 0.5 });
+        setTheme(d.theme || "Modern");
+        setWallColor(d.wallColor || "#FFFFFF");
+        setFloorPattern(d.floorPattern || "Classic Planks");
+        setWallPattern(d.wallPattern || "Solid Paint");
+        setWallVisibility(d.wallVisibility || "solid");
+        setShowScenery(d.showScenery || false);
+        setVastuEnabled(d.vastuEnabled || false);
+        setShowDims(d.showDims !== undefined ? d.showDims : true);
+        setRoomSet(true);
+        setProjectName(proj.name);
+        setProjectId(proj.id);
+        setProjectFolderId(urlFolderId);
+        projectLoadedRef.current = true;
+      }
+    } else if (urlFolderId) {
+      setProjectFolderId(urlFolderId);
+      const urlName = searchParams.get("name") || "";
+      if (urlName) {
+        setProjectName(urlName);
+      }
+      projectLoadedRef.current = true;
+    }
+  }, [urlProjectId, urlFolderId, searchParams]);
+
+  // Toast helper
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  // Save project handler
+  const handleSaveProject = (nameOverride) => {
+    if (!projectFolderId) {
+      showToast("No folder selected. Please start from Project Manager.", "error");
+      return;
+    }
+    const name = nameOverride || projectName;
+    if (!name) {
+      setShowSaveDialog(true);
+      return;
+    }
+    const data = collectDesignState({
+      room, sharedItems, doorPos, theme, wallColor,
+      floorPattern, wallPattern, wallVisibility,
+      showScenery, vastuEnabled, showDims
+    });
+    const thumb = generateThumbnail();
+    if (projectId) {
+      updateProject(projectFolderId, projectId, data, thumb);
+      showToast("Project saved! ✅");
+    } else {
+      const newProj = createProject(projectFolderId, name, data, thumb);
+      if (newProj) {
+        setProjectId(newProj.id);
+        setProjectName(name);
+        showToast("Project created! 🎉");
+        navigate(`/design?folderId=${projectFolderId}&projectId=${newProj.id}`, { replace: true });
+      }
+    }
+    setShowSaveDialog(false);
+  };
 
   // Sidebar tab state
   const [activeTab, setActiveTab] = useState("catalog"); // "catalog", "vastu", "styling"
@@ -147,8 +236,8 @@ export default function DesignStudio() {
     const standardArea = 12 * 10;
     const oldArea = prevW * prevL;
     const newArea = curW * curL;
-    const oldScaleFactor = Math.max(0.5, Math.min(1.8, Math.sqrt(oldArea / standardArea)));
-    const newScaleFactor = Math.max(0.5, Math.min(1.8, Math.sqrt(newArea / standardArea)));
+    const oldScaleFactor = Math.max(0.85, Math.min(1.15, Math.sqrt(oldArea / standardArea)));
+    const newScaleFactor = Math.max(0.85, Math.min(1.15, Math.sqrt(newArea / standardArea)));
 
     const updated = sharedItems.map(item => {
       // Find preset for default sizes
@@ -273,7 +362,7 @@ export default function DesignStudio() {
     // Room-proportional scale factor (normalized against a standard 12×10 room)
     const roomArea = rW_ft * rL_ft;
     const standardArea = 12 * 10;
-    const scaleFactor = Math.max(0.5, Math.min(1.8, Math.sqrt(roomArea / standardArea)));
+    const scaleFactor = Math.max(0.85, Math.min(1.15, Math.sqrt(roomArea / standardArea)));
     
     // Apply scale factor to furniture dimensions
     const itemW = preset.width * SCALE * scaleFactor;
@@ -333,6 +422,13 @@ export default function DesignStudio() {
 
   // Toggle interactive item state
   const toggleInteractItem = (id) => {
+    if (id === "door") {
+      const nextOpen = !doorPos.isOpen;
+      setDoorPos(prev => ({ ...prev, isOpen: nextOpen }));
+      if (nextOpen) playDoorOpenSound();
+      else playDoorCloseSound();
+      return;
+    }
     const item = sharedItems.find(i => i.id === id);
     if (!item) return;
     let next;
@@ -360,7 +456,7 @@ export default function DesignStudio() {
     const rL_ft = parseFloat(room.length) || 12;
     const roomArea = rW_ft * rL_ft;
     const standardArea = 12 * 10;
-    const scaleFactor = Math.max(0.5, Math.min(1.8, Math.sqrt(roomArea / standardArea)));
+    const scaleFactor = Math.max(0.85, Math.min(1.15, Math.sqrt(roomArea / standardArea)));
 
     const updated = sharedItems.map(item => {
       if (item.id !== id) return item;
@@ -402,11 +498,13 @@ export default function DesignStudio() {
   };
 
   // Current selected item details
-  const selItem = sharedItems.find(i => i.id === selectedId);
+  const selItem = selectedId === "door"
+    ? { id: "door", name: "Door", isOpen: doorPos.isOpen }
+    : sharedItems.find(i => i.id === selectedId);
   
   // Calculate selected item Vastu status
   let selectedVastu = null;
-  if (selItem) {
+  if (selItem && selItem.name !== "Door") {
     const rW_ft = parseFloat(room.width) || 10;
     const rL_ft = parseFloat(room.length) || 12;
     // Calculate center of item in feet (taking rotation into account)
@@ -758,7 +856,7 @@ export default function DesignStudio() {
         zIndex: 10,
         boxShadow: "0 4px 24px rgba(0,0,0,0.4)"
       }}>
-        <button onClick={() => { playPageTransitionSound(); navigate("/"); }} style={{
+        <button onClick={() => { playPageTransitionSound(); navigate("/projects"); }} style={{
           background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)",
           borderRadius: "8px", color: "#aaa", padding: "7px 14px",
           cursor: "pointer", fontSize: "0.82rem", fontWeight: "600", transition: "all 0.2s",
@@ -767,7 +865,7 @@ export default function DesignStudio() {
           onMouseEnter={e => { e.target.style.color = "#fff"; e.target.style.background = "rgba(255,255,255,0.08)"; }}
           onMouseLeave={e => { e.target.style.color = "#aaa"; e.target.style.background = "rgba(255,255,255,0.03)"; }}
         >
-          ← Home
+          ← Projects
         </button>
 
         <div style={{
@@ -777,7 +875,6 @@ export default function DesignStudio() {
           display: "flex", alignItems: "center", gap: "8px"
         }}>
           <span>🏠 GharDekho</span>
-          <span style={{ fontSize: "0.68rem", background: "rgba(212,169,106,0.15)", border: "1px solid rgba(212,169,106,0.3)", color: "#d4a96a", padding: "1px 6px", borderRadius: "10px", fontWeight: "700" }}>PRO</span>
         </div>
 
         <div style={{ width: "1px", height: "24px", background: "rgba(255,255,255,0.12)" }} />
@@ -870,6 +967,20 @@ export default function DesignStudio() {
           >
             📥 Export PDF
           </button>
+          {projectFolderId && (
+            <button onClick={() => handleSaveProject()} style={{
+              background: "linear-gradient(135deg, rgba(0,184,148,0.15), rgba(0,206,201,0.15))",
+              border: "1px solid rgba(0,184,148,0.4)",
+              borderRadius: "8px", color: "#00b894", padding: "7px 14px",
+              cursor: "pointer", fontSize: "0.82rem", fontWeight: "800", transition: "all 0.15s",
+              display: "flex", alignItems: "center", gap: "5px"
+            }}
+              onMouseEnter={e => { e.currentTarget.style.background = "linear-gradient(135deg, rgba(0,184,148,0.28), rgba(0,206,201,0.28))"; e.currentTarget.style.transform = "scale(1.03)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "linear-gradient(135deg, rgba(0,184,148,0.15), rgba(0,206,201,0.15))"; e.currentTarget.style.transform = "scale(1)"; }}
+            >
+              💾 Save Project
+            </button>
+          )}
         </div>
 
         <div style={{ width: "1px", height: "24px", background: "rgba(255,255,255,0.12)" }} />
@@ -988,6 +1099,7 @@ export default function DesignStudio() {
                     }}
                     onFocus={e => { e.target.style.borderColor = "#6c5ce7"; e.target.style.background = "rgba(108,92,231,0.1)"; }}
                     onBlur={e => { e.target.style.borderColor = "rgba(108,92,231,0.25)"; e.target.style.background = "rgba(0,0,0,0.35)"; }}
+                    onKeyDown={e => { if (e.key === "Enter") handleSetRoom(); }}
                   />
                 </div>
               ))}
@@ -1462,6 +1574,16 @@ export default function DesignStudio() {
                       { id: "Concrete Grids", label: "🧱 Concrete Tiles" },
                       { id: "Checkerboard", label: "🏁 Checkerboard" },
                       { id: "Chevron Wood", label: "📏 Chevron Parquet" },
+                      { id: "Hardwood Flooring", label: "🪵 Hardwood" },
+                      { id: "Herringbone Wood", label: "🔲 Herringbone" },
+                      { id: "Marble Flooring", label: "🏛️ Marble Floor" },
+                      { id: "Granite Flooring", label: "⬛ Granite" },
+                      { id: "Ceramic Tiles", label: "🧩 Ceramic" },
+                      { id: "Porcelain Tiles", label: "⬜ Porcelain" },
+                      { id: "Vinyl Flooring", label: "📋 Vinyl" },
+                      { id: "Concrete Flooring", label: "🪨 Concrete" },
+                      { id: "Parquet Flooring", label: "🔳 Parquet" },
+                      { id: "Modern Grey Tiles", label: "🔘 Grey Tiles" },
                     ].map(pat => (
                       <button 
                         key={pat.id}
@@ -1493,9 +1615,17 @@ export default function DesignStudio() {
                     {[
                       { id: "Solid Paint", label: "🎨 Smooth Paint" },
                       { id: "Vertical Panels", label: "🪵 Vertical Slats" },
-                      { id: "Textured Brick", label: "🧱 exposed Brick" },
+                      { id: "Textured Brick", label: "🧱 Exposed Brick" },
                       { id: "Geometric Deco", label: "📐 Geometric Deco" },
                       { id: "Floral Damask", label: "🌸 Floral Damask" },
+                      { id: "Wooden Slat Panels", label: "🪵 Wood Slats" },
+                      { id: "Marble Wall", label: "🏛️ Marble" },
+                      { id: "Exposed Brick", label: "🧱 Red Brick" },
+                      { id: "Concrete Finish", label: "🪨 Concrete" },
+                      { id: "Wallpaper Pattern", label: "🎭 Wallpaper" },
+                      { id: "Textured Paint", label: "🖌️ Textured" },
+                      { id: "Stone Cladding", label: "🪨 Stone" },
+                      { id: "Luxury Wood Panels", label: "✨ Lux Wood" },
                     ].map(pat => (
                       <button 
                         key={pat.id}
@@ -1634,7 +1764,7 @@ export default function DesignStudio() {
             flex: 1,
             display: "grid",
             gridTemplateColumns: view === "both" ? "1fr 1fr" : "1fr",
-            background: "#05050f",
+            background: "#f0f2f5",
             overflow: "hidden"
           }}>
             <div id="view-2d-container" style={{
@@ -1666,27 +1796,32 @@ export default function DesignStudio() {
               overflow: "hidden",
               display: (view === "3d" || view === "both") ? "block" : "none"
             }}>
-               <Canvas3D
-                room={room}
-                sharedItems={sharedItems}
-                onItemsChange={handleItemsChange}
-                onItemsCommit={handleItemsCommit}
-                selectedId={selectedId}
-                setSelectedId={setSelectedId}
-                theme={theme}
-                wallColor={wallColor}
-                showDims={showDims}
-                vastuEnabled={vastuEnabled}
-                floorPattern={floorPattern}
-                wallPattern={wallPattern}
-                doorPos={doorPos}
-                setDoorPos={setDoorPos}
-                onInteract={toggleInteractItem}
-                wallVisibility={wallVisibility}
-                showScenery={showScenery}
-              />
+              {(view === "3d" || view === "both") && (
+                 <Canvas3D
+                  room={room}
+                  sharedItems={sharedItems}
+                  onItemsChange={handleItemsChange}
+                  onItemsCommit={handleItemsCommit}
+                  selectedId={selectedId}
+                  setSelectedId={setSelectedId}
+                  theme={theme}
+                  wallColor={wallColor}
+                  showDims={showDims}
+                  vastuEnabled={vastuEnabled}
+                  floorPattern={floorPattern}
+                  wallPattern={wallPattern}
+                  doorPos={doorPos}
+                  setDoorPos={setDoorPos}
+                  onInteract={toggleInteractItem}
+                  wallVisibility={wallVisibility}
+                  showScenery={showScenery}
+                  cameraAngle={cameraAngle}
+                />
+              )}
             </div>
           </div>
+
+
 
           {/* ── Floating Context HUD (similar to home.by.me contextual menu) ── */}
           {selItem && (
@@ -1746,124 +1881,131 @@ export default function DesignStudio() {
                   ✏️ {selItem.name}
                 </span>
 
-                <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)" }} />
+                {selItem.name !== "Door" && (
+                  <>
+                    <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)" }} />
 
-                {/* Color pickers */}
-                <div style={{ display: "flex", gap: "4px" }}>
-                  {FUR_COLORS.slice(0, 8).map(c => (
-                    <div 
-                      key={c}
-                      onClick={() => changeItemColor(selItem.id, c)}
-                      style={{
-                        width: "18px", height: "18px", borderRadius: "50%",
-                        background: c, cursor: "pointer",
-                        border: selItem.color === c ? "2px solid #fff" : "1px solid rgba(255,255,255,0.2)",
-                        boxShadow: selItem.color === c ? `0 0 8px ${c}` : "none",
-                        transition: "all 0.15s"
-                      }}
-                      onMouseEnter={e => e.target.style.transform = "scale(1.3)"}
-                      onMouseLeave={e => e.target.style.transform = "scale(1)"}
-                    />
-                  ))}
-                </div>
+                    {/* Color pickers */}
+                    <div style={{ display: "flex", gap: "4px" }}>
+                      {FUR_COLORS.slice(0, 8).map(c => (
+                        <div 
+                          key={c}
+                          onClick={() => changeItemColor(selItem.id, c)}
+                          style={{
+                            width: "18px", height: "18px", borderRadius: "50%",
+                            background: c, cursor: "pointer",
+                            border: selItem.color === c ? "2px solid #fff" : "1px solid rgba(255,255,255,0.2)",
+                            boxShadow: selItem.color === c ? `0 0 8px ${c}` : "none",
+                            transition: "all 0.15s"
+                          }}
+                          onMouseEnter={e => e.target.style.transform = "scale(1.3)"}
+                          onMouseLeave={e => e.target.style.transform = "scale(1)"}
+                        />
+                      ))}
+                    </div>
 
-                 <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)" }} />
+                    <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)" }} />
 
-                {/* Size slider */}
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.6)", fontWeight: "600" }}>
-                    Size:
-                  </span>
-                  <input
-                    type="range"
-                    min="0.5"
-                    max="2.0"
-                    step="0.05"
-                    value={selItem.sizeMultiplier || 1.0}
-                    onChange={(e) => updateItemSize(selItem.id, parseFloat(e.target.value))}
-                    style={{
-                      width: "80px",
-                      accentColor: "#6c5ce7",
-                      cursor: "pointer",
-                      height: "4px",
-                      borderRadius: "2px"
-                    }}
-                  />
-                  <span style={{ fontSize: "0.75rem", color: "#a29bfe", fontWeight: "800", minWidth: "30px" }}>
-                    {Math.round((selItem.sizeMultiplier || 1.0) * 100)}%
-                  </span>
-                </div>
-
-                <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)" }} />
-
-                {/* Actions */}
-                {/* Interactive Toggle */}
-                {(selItem.name === "Floor Lamp" || 
-                  selItem.name.includes("Wardrobe") || 
-                  selItem.name.includes("Bookshelf") || 
-                  selItem.name === "Window") && (
-                  <button 
-                    onClick={() => toggleInteractItem(selItem.id)}
-                    style={{
-                      background: "rgba(162,155,254,0.15)", border: "1px solid rgba(162,155,254,0.35)",
-                      color: "#a29bfe", cursor: "pointer", borderRadius: "20px", padding: "5px 12px",
-                      fontSize: "0.78rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "4px",
-                      transition: "all 0.15s"
-                    }}
-                    onMouseEnter={e => e.target.style.background = "rgba(162,155,254,0.25)"}
-                    onMouseLeave={e => e.target.style.background = "rgba(162,155,254,0.15)"}
-                  >
-                    {selItem.name === "Floor Lamp" ? (
-                      selItem.isLit ? "💡 Turn Off" : "💡 Turn On"
-                    ) : selItem.name === "Window" ? (
-                      selItem.isOpen ? "🪟 Close Sash" : "🪟 Slide Open"
-                    ) : (
-                      selItem.isOpen ? "🚪 Close Doors" : "🚪 Open Doors"
-                    )}
-                  </button>
+                    {/* Size slider */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.6)", fontWeight: "600" }}>
+                        Size:
+                      </span>
+                      <input
+                        type="range"
+                        min="0.5"
+                        max="2.0"
+                        step="0.05"
+                        value={selItem.sizeMultiplier || 1.0}
+                        onChange={(e) => updateItemSize(selItem.id, parseFloat(e.target.value))}
+                        style={{
+                          width: "80px",
+                          accentColor: "#6c5ce7",
+                          cursor: "pointer",
+                          height: "4px",
+                          borderRadius: "2px"
+                        }}
+                      />
+                      <span style={{ fontSize: "0.75rem", color: "#a29bfe", fontWeight: "800", minWidth: "30px" }}>
+                        {Math.round((selItem.sizeMultiplier || 1.0) * 100)}%
+                      </span>
+                    </div>
+                  </>
                 )}
 
-                <button 
-                  onClick={() => rotateItem(selItem.id)}
-                  style={{
-                    background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
-                    color: "#fff", cursor: "pointer", borderRadius: "20px", padding: "5px 12px",
-                    fontSize: "0.78rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "4px",
-                    transition: "all 0.15s"
-                  }}
-                  onMouseEnter={e => e.target.style.background = "rgba(255,255,255,0.15)"}
-                  onMouseLeave={e => e.target.style.background = "rgba(255,255,255,0.06)"}
-                >
-                  🔄 Rotate
-                </button>
+                {(selItem.name === "Floor Lamp" || 
+                  selItem.name === "Door" || 
+                  selItem.name === "Window") && (
+                  <>
+                    <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)" }} />
+                    <button 
+                      onClick={() => toggleInteractItem(selItem.id)}
+                      style={{
+                        background: "rgba(162,155,254,0.15)", border: "1px solid rgba(162,155,254,0.35)",
+                        color: "#a29bfe", cursor: "pointer", borderRadius: "20px", padding: "5px 12px",
+                        fontSize: "0.78rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "4px",
+                        transition: "all 0.15s"
+                      }}
+                      onMouseEnter={e => e.target.style.background = "rgba(162,155,254,0.25)"}
+                      onMouseLeave={e => e.target.style.background = "rgba(162,155,254,0.15)"}
+                    >
+                      {selItem.name === "Floor Lamp" ? (
+                        selItem.isLit ? "💡 Turn Off" : "💡 Turn On"
+                      ) : selItem.name === "Window" ? (
+                        selItem.isOpen ? "🪟 Close Sash" : "🪟 Slide Open"
+                      ) : (
+                        selItem.isOpen ? "🚪 Close Door" : "🚪 Open Door"
+                      )}
+                    </button>
+                  </>
+                )}
 
-                <button 
-                  onClick={() => duplicateItem(selItem.id)}
-                  style={{
-                    background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
-                    color: "#fff", cursor: "pointer", borderRadius: "20px", padding: "5px 12px",
-                    fontSize: "0.78rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "4px",
-                    transition: "all 0.15s"
-                  }}
-                  onMouseEnter={e => e.target.style.background = "rgba(255,255,255,0.15)"}
-                  onMouseLeave={e => e.target.style.background = "rgba(255,255,255,0.06)"}
-                >
-                  ➕ Duplicate
-                </button>
+                {selItem.name !== "Door" && (
+                  <>
+                    <div style={{ width: "1px", height: "18px", background: "rgba(255,255,255,0.15)" }} />
+                    <button 
+                      onClick={() => rotateItem(selItem.id)}
+                      style={{
+                        background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                        color: "#fff", cursor: "pointer", borderRadius: "20px", padding: "5px 12px",
+                        fontSize: "0.78rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "4px",
+                        transition: "all 0.15s"
+                      }}
+                      onMouseEnter={e => e.target.style.background = "rgba(255,255,255,0.15)"}
+                      onMouseLeave={e => e.target.style.background = "rgba(255,255,255,0.06)"}
+                    >
+                      🔄 Rotate
+                    </button>
 
-                <button 
-                  onClick={() => removeItem(selItem.id)}
-                  style={{
-                    background: "rgba(225,112,85,0.15)", border: "1px solid rgba(225,112,85,0.35)",
-                    color: "#ff7675", cursor: "pointer", borderRadius: "20px", padding: "5px 12px",
-                    fontSize: "0.78rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "4px",
-                    transition: "all 0.15s"
-                  }}
-                  onMouseEnter={e => e.target.style.background = "rgba(225,112,85,0.25)"}
-                  onMouseLeave={e => e.target.style.background = "rgba(225,112,85,0.15)"}
-                >
-                  🗑️ Delete
-                </button>
+                    <button 
+                      onClick={() => duplicateItem(selItem.id)}
+                      style={{
+                        background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                        color: "#fff", cursor: "pointer", borderRadius: "20px", padding: "5px 12px",
+                        fontSize: "0.78rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "4px",
+                        transition: "all 0.15s"
+                      }}
+                      onMouseEnter={e => e.target.style.background = "rgba(255,255,255,0.15)"}
+                      onMouseLeave={e => e.target.style.background = "rgba(255,255,255,0.06)"}
+                    >
+                      ➕ Duplicate
+                    </button>
+
+                    <button 
+                      onClick={() => removeItem(selItem.id)}
+                      style={{
+                        background: "rgba(225,112,85,0.15)", border: "1px solid rgba(225,112,85,0.35)",
+                        color: "#ff7675", cursor: "pointer", borderRadius: "20px", padding: "5px 12px",
+                        fontSize: "0.78rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "4px",
+                        transition: "all 0.15s"
+                      }}
+                      onMouseEnter={e => e.target.style.background = "rgba(225,112,85,0.25)"}
+                      onMouseLeave={e => e.target.style.background = "rgba(225,112,85,0.15)"}
+                    >
+                      🗑️ Delete
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -1880,6 +2022,59 @@ export default function DesignStudio() {
           setShowAuthModal(false); 
         }} 
       />
+
+      {/* Save Project Name Dialog */}
+      {showSaveDialog && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
+          animation: "modalFadeIn 0.25s ease forwards"
+        }} onClick={() => setShowSaveDialog(false)}>
+          <div style={{
+            background: "rgba(15,15,30,0.92)", border: "1px solid rgba(162,155,254,0.25)",
+            borderRadius: "20px", padding: "32px", width: "90%", maxWidth: "420px",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.7)", animation: "dialogSlideUp 0.35s ease forwards"
+          }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ color: "#fff", marginBottom: "8px", fontSize: "1.2rem", fontWeight: "900" }}>💾 Save Project</h3>
+            <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.88rem", marginBottom: "20px" }}>Enter a name for your project</p>
+            <input
+              value={saveProjectName}
+              onChange={e => setSaveProjectName(e.target.value)}
+              placeholder="My Room Design..."
+              autoFocus
+              onKeyDown={e => { if (e.key === "Enter" && saveProjectName.trim()) handleSaveProject(saveProjectName.trim()); }}
+              style={{
+                width: "100%", padding: "14px 18px", background: "rgba(0,0,0,0.35)",
+                border: "1px solid rgba(108,92,231,0.25)", borderRadius: "12px", color: "#fff",
+                fontSize: "0.95rem", outline: "none", boxSizing: "border-box", transition: "all 0.2s"
+              }}
+              onFocus={e => e.target.style.borderColor = "#6c5ce7"}
+              onBlur={e => e.target.style.borderColor = "rgba(108,92,231,0.25)"}
+            />
+            <div style={{ display: "flex", gap: "12px", marginTop: "20px" }}>
+              <button onClick={() => setShowSaveDialog(false)} style={{
+                flex: 1, padding: "14px", background: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,255,255,0.15)", borderRadius: "12px",
+                color: "#ccc", fontWeight: "700", cursor: "pointer", fontSize: "0.95rem"
+              }}>Cancel</button>
+              <button onClick={() => saveProjectName.trim() && handleSaveProject(saveProjectName.trim())} style={{
+                flex: 1, padding: "14px",
+                background: "linear-gradient(135deg, #00b894, #00cec9)",
+                border: "none", borderRadius: "12px", color: "#fff",
+                fontWeight: "800", cursor: "pointer", fontSize: "0.95rem",
+                boxShadow: "0 6px 20px rgba(0,184,148,0.4)"
+              }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`toast-notification ${toast.type === "error" ? "toast-error" : "toast-success"}`}>
+          {toast.msg}
+        </div>
+      )}
     </div>
   );
 }

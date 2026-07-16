@@ -303,3 +303,36 @@ export function playLampClickSound() {
     console.warn(e);
   }
 }
+
+/**
+ * Synthesizes a cute click / bubble pop sound effect using a rapid sine wave sweep
+ */
+export function playCuteClickSound() {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    osc.type = "sine";
+    // Bubble pop chime: starts at 580Hz, sweeps up to 1400Hz in 0.08s
+    osc.frequency.setValueAtTime(580, now);
+    osc.frequency.exponentialRampToValueAtTime(1400, now + 0.08);
+
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(0.12, now + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.12);
+  } catch (e) {
+    console.warn("Cute click sound failed:", e);
+  }
+}
+

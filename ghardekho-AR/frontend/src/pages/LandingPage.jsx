@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { playPageTransitionSound } from "../utils/audioHelper";
+import { playPageTransitionSound, playCuteClickSound } from "../utils/audioHelper";
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -115,7 +115,7 @@ export default function LandingPage() {
         <div style={{position:"absolute",bottom:"-10%",right:"-10%",width:"600px",height:"600px",background:"radial-gradient(circle, rgba(0,184,148,0.2) 0%, transparent 75%)",borderRadius:"50%",pointerEvents:"none"}}/>
 
         {/* Auth Card */}
-        <div style={{
+        <div className="animate-pop-in" style={{
           background: "rgba(15, 15, 30, 0.65)",
           backdropFilter: "blur(25px)",
           border: "1px solid rgba(255, 255, 255, 0.12)",
@@ -267,6 +267,7 @@ export default function LandingPage() {
 
             <button
               type="submit"
+              onClick={playCuteClickSound}
               style={{
                 padding: "15px",
                 background: "linear-gradient(135deg, #6c5ce7, #a29bfe)",
@@ -302,6 +303,7 @@ export default function LandingPage() {
             {isLogin ? "Don't have an account? " : "Already have an account? "}
             <span
               onClick={() => {
+                playCuteClickSound();
                 setIsLogin(!isLogin);
                 setError("");
                 setSuccess("");
@@ -336,7 +338,7 @@ export default function LandingPage() {
       <div style={{position:"absolute",top:"40%",right:"20%",width:"300px",height:"300px",background:"radial-gradient(circle, rgba(162,155,254,0.15) 0%, transparent 70%)",borderRadius:"50%",pointerEvents:"none"}}/>
 
       {/* Navbar */}
-      <nav style={{
+      <nav className="animate-fade-in-up" style={{
         display:"flex", justifyContent:"space-between", alignItems:"center",
         padding:"20px 48px",
         borderBottom:"1px solid rgba(255,255,255,0.08)",
@@ -363,6 +365,7 @@ export default function LandingPage() {
           </span>
           <button 
             onClick={() => {
+              playCuteClickSound();
               if (window.confirm("Are you sure you want to log out?")) {
                 localStorage.removeItem("ghardekho_active_user");
                 playPageTransitionSound();
@@ -397,7 +400,7 @@ export default function LandingPage() {
         position:"relative", zIndex:10,
       }}>
         {/* Badge */}
-        <div style={{
+        <div className="animate-pop-in animate-delay-1" style={{
           display:"inline-flex", alignItems:"center", gap:"8px",
           padding:"6px 16px",
           background:"rgba(108,92,231,0.15)",
@@ -410,15 +413,33 @@ export default function LandingPage() {
 
         <h1 style={{
           fontSize:"clamp(2.5rem, 6vw, 4.5rem)",
-          fontWeight:"800", lineHeight:1.15,
-          marginBottom:"20px",
-          background:"linear-gradient(135deg, #fff 0%, #a29bfe 50%, #00b894 100%)",
-          WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent",
+          fontWeight:"900", lineHeight:1.2,
+          marginBottom:"28px",
+          fontFamily: "'Cooper Black', 'Fraunces', serif",
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          gap: "0.25em",
+          rowGap: "0.1em"
         }}>
-          Design Your Room<br />Before You Buy
+          {["Design", "Your", "Room", "Before", "You", "Buy"].map((word, idx) => (
+            <span
+              key={idx}
+              className="animate-pop-in"
+              style={{
+                display: "inline-block",
+                animationDelay: `${0.1 + idx * 0.12}s`,
+                background: idx >= 3 ? "linear-gradient(135deg, #a29bfe 30%, #00b894 100%)" : "linear-gradient(135deg, #fff 0%, #a29bfe 80%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              {word}
+            </span>
+          ))}
         </h1>
 
-        <p style={{
+        <p className="animate-fade-in-up animate-delay-3" style={{
           color:"rgba(255,255,255,0.6)",
           fontSize:"1.1rem", maxWidth:"480px",
           margin:"0 auto 48px", lineHeight:1.7,
@@ -428,8 +449,8 @@ export default function LandingPage() {
         </p>
 
         {/* CTA Buttons */}
-        <div style={{display:"flex", gap:"16px", justifyContent:"center", flexWrap:"wrap"}}>
-          <button onClick={()=>{ playPageTransitionSound(); navigate("/design"); }} style={{
+        <div className="animate-fade-in-up animate-delay-4" style={{display:"flex", gap:"16px", justifyContent:"center", flexWrap:"wrap"}}>
+          <button className="landing-btn-pulse" onClick={()=>{ playCuteClickSound(); playPageTransitionSound(); navigate("/projects"); }} style={{
             padding:"18px 48px",
             background:"linear-gradient(135deg, #6c5ce7, #a29bfe)",
             border:"none", borderRadius:"14px", color:"#fff",
@@ -437,15 +458,13 @@ export default function LandingPage() {
             boxShadow:"0 8px 32px rgba(108,92,231,0.5)",
             transition:"all 0.2s",
           }}
-            onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-3px)"; e.currentTarget.style.boxShadow="0 12px 40px rgba(108,92,231,0.6)";}}
-            onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.boxShadow="0 8px 32px rgba(108,92,231,0.5)";}}
           >
             🎨 Go to Studio →
           </button>
         </div>
 
         {/* Stats */}
-        <div style={{
+        <div className="animate-fade-in-up animate-delay-4" style={{
           display:"flex", gap:"48px", justifyContent:"center",
           marginTop:"72px", flexWrap:"wrap",
         }}>
@@ -478,13 +497,15 @@ export default function LandingPage() {
             { icon:"📐", title:"2D Floor Plan", desc:"Drag & drop furniture on a realistic floor plan with dimensions", color:"#6c5ce7" },
             { icon:"🧊", title:"3D Room View", desc:"See your room in full 3D with real furniture shapes and lighting", color:"#00b894" },
             { icon:"✨", title:"AI Layouts", desc:"Get 3 AI-designed interior layouts tailored to your room size", color:"#fdcb6e" },
-          ].map(f=>(
+          ].map((f, index)=>(
             <div key={f.title}
+              className={`animate-pop-in animate-delay-${index + 2} landing-interactive-card`}
+              onClick={playCuteClickSound}
               style={{
                 background:"rgba(255,255,255,0.04)",
                 border:"1px solid rgba(255,255,255,0.08)",
                 borderRadius:"16px", padding:"24px",
-                transition:"all 0.25s", cursor:"default",
+                transition:"all 0.25s", cursor:"pointer",
               }}
               onMouseEnter={e=>{
                 e.currentTarget.style.background="rgba(255,255,255,0.08)";
@@ -511,7 +532,7 @@ export default function LandingPage() {
       </div>
 
       {/* Footer */}
-      <div style={{
+      <div className="animate-fade-in-up animate-delay-4" style={{
         borderTop:"1px solid rgba(255,255,255,0.06)",
         padding:"20px", textAlign:"center",
         color:"rgba(255,255,255,0.25)", fontSize:"0.8rem",
